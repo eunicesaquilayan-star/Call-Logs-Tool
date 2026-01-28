@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Call Log Tool</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg,#e3f2fd,#f8f9fa);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1250px;
+  margin: 30px auto;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 25px;
+  box-shadow: 0 10px 25px rgba(0,0,0,.08);
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+header img { height: 42px; }
+
+button {
+  padding: 8px 14px;
+  background: #0d6efd;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+button:hover { background:#0b5ed7; }
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0 14px;
+  border-radius: 6px;
+  border: 1px solid #ced4da;
+}
+
+textarea { min-height: 120px; }
+
+.section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.hidden { display:none; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background:#fff;
+}
+th, td {
+  border: 1px solid #dee2e6;
+  padding: 8px;
+  vertical-align: top;
+}
+th { background:#e9ecef; }
+
+.toggle {
+  color: #0d6efd;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.note-box {
+  margin-top: 6px;
+  padding: 10px;
+  background: #f1f3f5;
+  border-radius: 6px;
+  white-space: pre-line;
+}
+
+.admin {
+  background:#fff3cd;
+  padding:20px;
+  margin-top:30px;
+  border-radius:8px;
+}
+
+.dashboard {
+  background:#e7f1ff;
+  padding:20px;
+  border-radius:8px;
+  margin-top:20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+  <img src="images/SL-Logo2.png" alt="SL Logo">
+  <div>
+    <strong id="roleLabel"></strong><br>
+    <span id="userLabel"></span><br>
+    <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<!-- LOGIN -->
+<div id="loginSection">
+  <h2>Login</h2>
+  <input id="loginEmail" placeholder="Agent Email">
+  <input id="adminPassword" type="password" placeholder="Admin Password (optional)">
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- APP -->
+<div id="appSection" class="hidden">
+
+<div class="section">
+<h3>New Call Log</h3>
+
+<input id="fullName" placeholder="Complete Name *">
+<input id="company" placeholder="Company Name *">
+<input id="phone" placeholder="Phone Number *">
+<input id="email" placeholder="Email Address or User ID">
+
+<select id="disposition">
+  <option value="">Select Disposition *</option>
+  <option>Password Reset</option>
+  <option>Order Entry</option>
+  <option>Order Status / Tracking</option>
+  <option>General Inquiry</option>
+</select>
+
+<select id="status">
+  <option>Open</option>
+  <option>Follow Up</option>
+  <option>Resolved</option>
+</select>
+
+<textarea id="notes">Concern:
+Action Taken:</textarea>
+
+<button onclick="addLog()">Submit Log (Ctrl + Enter)</button>
+</div>
+
+<div class="section">
+<h3>Search Logs</h3>
+<input id="search" placeholder="Search by Name, Phone, Company" onkeyup="renderLogs()">
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Name</th><th>Company</th><th>Phone</th><th>Email</th>
+<th>Disposition</th><th>Status</th><th>Notes</th>
+<th>Agent</th><th>Date</th>
+</tr>
+</thead>
+<tbody id="logTable"></tbody>
+</table>
+
+<!-- ADMIN DASHBOARD -->
+<div id="adminPanel" class="admin hidden">
+<h3>Admin Dashboard</h3>
+
+<button onclick="exportCSV()">Download Excel Report (CSV)</button>
+
+<div class="dashboard">
+<h4>📊 Notations Per Day / Agent</h4>
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Agent</th><th>Total Logs</th>
+</tr>
+</thead>
+<tbody id="analyticsTable"></tbody>
+</table>
+</div>
+
+</div>
+
+</div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "rperez@123";
+const LOG_KEY = "callLogs";
+const USER_KEY = "currentUser";
+
+let isAdmin = false;
+let currentUser = "";
+
+function login(){
+  if(!loginEmail.value.trim()) return alert("Email required");
+  isAdmin = adminPassword.value === ADMIN_PASSWORD;
+  currentUser = loginEmail.value.trim();
+  localStorage.setItem(USER_KEY, JSON.stringify({ email: currentUser, isAdmin }));
+  showApp();
+}
+
+function showApp(){
+  loginSection.classList.add("hidden");
+  appSection.classList.remove("hidden");
+  roleLabel.innerText = isAdmin ? "ADMIN" : "AGENT";
+  userLabel.innerText = currentUser;
+  logoutBtn.classList.remove("hidden");
+  adminPanel.classList.toggle("hidden", !isAdmin);
+  renderLogs();
+  if(isAdmin) renderAnalytics();
+}
+
+function logout(){
+  localStorage.removeItem(USER_KEY);
+  location.reload();
+}
+
+function addLog(){
+  const disp = disposition.value;
+  const statusVal = document.getElementById("status").value;
+
+  if(!fullName.value || !company.value || !phone.value || !disp)
+    return alert("Required fields missing");
+
+  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+
+  logs.push({
+    name: fullName.value.trim(),
+    company: company.value.trim(),
+    phone: phone.value.trim(),
+    email: email.value.trim(),
+    disposition: disp,
+    status: statusVal,
+    notes: notes.value.trim(),
+    agent: currentUser,
+    date: new Date().toLocaleString(),
+    day: new Date().toLocaleDateString()
+  });
+
+  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+
+  fullName.value = company.value = phone.value = email.value = "";
+  disposition.value = "";
+  document.getElementById("status").value = "Open";
+  notes.value = "Concern:\nAction Taken:";
+
+  renderLogs();
+  if(isAdmin) renderAnalytics();
+}
+
+function renderLogs(){
+  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+  const q = search.value.toLowerCase();
+  logTable.innerHTML = "";
+
+  logs.filter(l =>
+    l.name.toLowerCase().includes(q) ||
+    l.phone.includes(q) ||
+    l.company.toLowerCase().includes(q)
+  ).forEach((l,i)=>{
+    logTable.innerHTML += `
+    <tr>
+      <td>${l.name}</td>
+      <td>${l.company}</td>
+      <td>${l.phone}</td>
+      <td>${l.email || ""}</td>
+      <td>${l.disposition}</td>
+      <td>${l.status}</td>
+      <td>
+        <span class="toggle" onclick="toggle(${i})">View</span>
+        <div id="n${i}" class="note-box hidden">${l.notes}</div>
+      </td>
+      <td>${l.agent}</td>
+      <td>${l.date}</td>
+    </tr>`;
+  });
+}
+
+function toggle(i){
+  document.getElementById("n"+i).classList.toggle("hidden");
+}
+
+/* 📊 ANALYTICS */
+function renderAnalytics(){
+  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+  const map = {};
+  analyticsTable.innerHTML = "";
+
+  logs.forEach(l=>{
+    const key = l.day + "|" + l.agent;
+    map[key] = (map[key] || 0) + 1;
+  });
+
+  Object.keys(map).forEach(k=>{
+    const [day,agent] = k.split("|");
+    analyticsTable.innerHTML += `
+      <tr>
+        <td>${day}</td>
+        <td>${agent}</td>
+        <td>${map[k]}</td>
+      </tr>`;
+  });
+}
+
+/* 📁 EXCEL EXPORT */
+function exportCSV(){
+  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+  let csv = "Name,Company,Phone,Email,Disposition,Status,Agent,Date,Notes\n";
+
+  logs.forEach(l=>{
+    csv += `"${l.name}","${l.company}","${l.phone}","${l.email}","${l.disposition}","${l.status}","${l.agent}","${l.date}","${l.notes.replace(/"/g,'""')}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "call_logs_report.csv";
+  a.click();
+}
+
+/* ⌨ SHORTCUTS */
+document.addEventListener("keydown", e => {
+  if(e.ctrlKey && e.key === "Enter") addLog();
+});
+
+const saved = JSON.parse(localStorage.getItem(USER_KEY));
+if(saved){
+  currentUser = saved.email;
+  isAdmin = saved.isAdmin;
+  showApp();
+}
+</script>
+
+</body>
+</html>
