@@ -9,16 +9,15 @@ body {
   font-family: Arial, sans-serif;
   background: linear-gradient(135deg,#e3f2fd,#f8f9fa);
   margin: 0;
-  padding: 0;
 }
 
 .container {
-  max-width: 1250px;
+  max-width: 1350px;
   margin: 30px auto;
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 25px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.08);
+  background: #fff;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
 }
 
 header {
@@ -26,18 +25,18 @@ header {
   justify-content: space-between;
   align-items: center;
   border-bottom: 2px solid #dee2e6;
-  padding-bottom: 12px;
-  margin-bottom: 20px;
+  padding-bottom: 14px;
+  margin-bottom: 25px;
 }
 header img { height: 95px; }
 
 button {
-  padding: 8px 14px;
+  padding: 8px 16px;
   background: #0d6efd;
   color: #fff;
   border: none;
-  cursor: pointer;
   border-radius: 6px;
+  cursor: pointer;
 }
 button:hover { background:#0b5ed7; }
 
@@ -49,57 +48,88 @@ input, select, textarea {
   border: 1px solid #ced4da;
 }
 
-textarea { min-height: 120px; }
+textarea {
+  min-height: 120px;
+  font-family: monospace;
+}
 
 .section {
-  margin-bottom: 30px;
-  padding: 20px;
   background: #f8f9fa;
-  border-radius: 8px;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
 }
 
 .hidden { display:none; }
 
+/* DASHBOARD CARDS */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 6px 15px rgba(0,0,0,.05);
+}
+.card h4 { margin: 0 0 8px; color:#6c757d; }
+.card span { font-size: 28px; font-weight: bold; }
+
+/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 15px;
-  background:#fff;
 }
 th, td {
   border: 1px solid #dee2e6;
-  padding: 8px;
+  padding: 10px;
   vertical-align: top;
 }
 th { background:#e9ecef; }
+tr:nth-child(even) { background:#f8f9fa; }
+tr:hover { background:#eef4ff; }
 
-.toggle {
-  color: #0d6efd;
-  cursor: pointer;
+/* BADGES */
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: bold;
 }
+.open { background:#fff3cd; }
+.follow { background:#cfe2ff; }
+.resolved { background:#d1e7dd; }
 
+/* NOTES */
 .note-box {
-  margin-top: 6px;
-  padding: 10px;
+  margin-top: 8px;
+  padding: 12px;
   background: #f1f3f5;
   border-radius: 6px;
   white-space: pre-line;
 }
 
-.admin {
-  background:#fff3cd;
-  padding:20px;
-  margin-top:30px;
-  border-radius:8px;
+.toggle {
+  color:#0d6efd;
+  cursor:pointer;
+  font-weight:bold;
 }
 
-.dashboard {
-  background:#e7f1ff;
-  padding:20px;
-  border-radius:8px;
-  margin-top:20px;
+/* ADMIN */
+.admin {
+  background:#fff3cd;
+  padding:25px;
+  border-radius:12px;
 }
+.admin h3 { margin-top:0; }
+
+.danger {
+  background:#dc3545;
+}
+.danger:hover { background:#bb2d3b; }
 </style>
 </head>
 
@@ -108,7 +138,7 @@ th { background:#e9ecef; }
 <div class="container">
 
 <header>
-  <img src="images/SL-Logo3.png" alt="SL Logo3">
+  <img src="images/SL-Logo3.png">
   <div>
     <strong id="roleLabel"></strong><br>
     <span id="userLabel"></span><br>
@@ -127,16 +157,23 @@ th { background:#e9ecef; }
 <!-- APP -->
 <div id="appSection" class="hidden">
 
+<!-- SUMMARY -->
+<div class="cards">
+  <div class="card"><h4>Logs Today</h4><span id="todayCount">0</span></div>
+  <div class="card"><h4>Open</h4><span id="openCount">0</span></div>
+  <div class="card"><h4>Resolved</h4><span id="resolvedCount">0</span></div>
+</div>
+
 <div class="section">
 <h3>New Call Log</h3>
 
 <input id="fullName" placeholder="Complete Name *">
 <input id="company" placeholder="Company Name *">
 <input id="phone" placeholder="Phone Number *">
-<input id="email" placeholder="Email Address or User ID">
+<input id="email" placeholder="Email / User ID">
 
 <select id="disposition">
-  <option value="">Select Disposition *</option>
+  <option value="">Disposition *</option>
   <option>Password Reset</option>
   <option>Order Entry</option>
   <option>Order Status / Tracking</option>
@@ -155,17 +192,12 @@ Action Taken:</textarea>
 <button onclick="addLog()">Submit Log (Ctrl + Enter)</button>
 </div>
 
-<div class="section">
-<h3>Search Logs</h3>
-<input id="search" placeholder="Search by Name, Phone, Company" onkeyup="renderLogs()">
-</div>
-
 <table>
 <thead>
 <tr>
-<th>Name</th><th>Company</th><th>Phone</th><th>Email</th>
-<th>Disposition</th><th>Status</th><th>Notes</th>
-<th>Agent</th><th>Date</th>
+<th>Name</th><th>Company</th><th>Phone</th><th>Disposition</th>
+<th>Status</th><th>Notes</th><th>Agent</th><th>Date</th>
+<th id="adminCol" class="hidden">Actions</th>
 </tr>
 </thead>
 <tbody id="logTable"></tbody>
@@ -173,21 +205,18 @@ Action Taken:</textarea>
 
 <!-- ADMIN DASHBOARD -->
 <div id="adminPanel" class="admin hidden">
+
 <h3>Admin Dashboard</h3>
 
-<button onclick="exportCSV()">Download Excel Report (CSV)</button>
+<button onclick="exportCSV()">⬇ Download Excel (CSV)</button>
 
-<div class="dashboard">
-<h4>📊 Notations Per Day / Agent</h4>
+<h4 style="margin-top:25px;">📊 Logs Per Day / Agent</h4>
 <table>
 <thead>
-<tr>
-<th>Date</th><th>Agent</th><th>Total Logs</th>
-</tr>
+<tr><th>Date</th><th>Agent</th><th>Total Logs</th></tr>
 </thead>
 <tbody id="analyticsTable"></tbody>
 </table>
-</div>
 
 </div>
 
@@ -195,158 +224,135 @@ Action Taken:</textarea>
 </div>
 
 <script>
-const ADMIN_PASSWORD = "rperez@123";
-const LOG_KEY = "callLogs";
-const USER_KEY = "currentUser";
-
-let isAdmin = false;
-let currentUser = "";
+const LOG_KEY="callLogs", USER_KEY="currentUser", ADMIN_PASSWORD="rperez@123";
+let currentUser="", isAdmin=false;
 
 function login(){
-  if(!loginEmail.value.trim()) return alert("Email required");
-  isAdmin = adminPassword.value === ADMIN_PASSWORD;
-  currentUser = loginEmail.value.trim();
-  localStorage.setItem(USER_KEY, JSON.stringify({ email: currentUser, isAdmin }));
+  if(!loginEmail.value) return alert("Email required");
+  isAdmin=adminPassword.value===ADMIN_PASSWORD;
+  currentUser=loginEmail.value;
+  localStorage.setItem(USER_KEY,JSON.stringify({email:currentUser,isAdmin}));
   showApp();
 }
 
 function showApp(){
   loginSection.classList.add("hidden");
   appSection.classList.remove("hidden");
-  roleLabel.innerText = isAdmin ? "ADMIN" : "AGENT";
-  userLabel.innerText = currentUser;
+  roleLabel.innerText=isAdmin?"ADMIN":"AGENT";
+  userLabel.innerText=currentUser;
   logoutBtn.classList.remove("hidden");
-  adminPanel.classList.toggle("hidden", !isAdmin);
+  adminPanel.classList.toggle("hidden",!isAdmin);
+  adminCol.classList.toggle("hidden",!isAdmin);
   renderLogs();
   if(isAdmin) renderAnalytics();
 }
 
-function logout(){
-  localStorage.removeItem(USER_KEY);
-  location.reload();
-}
+function logout(){ localStorage.removeItem(USER_KEY); location.reload(); }
 
 function addLog(){
-  const disp = disposition.value;
-  const statusVal = document.getElementById("status").value;
+  if(!fullName.value||!company.value||!phone.value||!disposition.value)
+    return alert("Missing required fields");
 
-  if(!fullName.value || !company.value || !phone.value || !disp)
-    return alert("Required fields missing");
-
-  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
-
+  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
   logs.push({
-    name: fullName.value.trim(),
-    company: company.value.trim(),
-    phone: phone.value.trim(),
-    email: email.value.trim(),
-    disposition: disp,
-    status: statusVal,
-    notes: notes.value.trim(),
-    agent: currentUser,
-    date: new Date().toLocaleString(),
-    day: new Date().toLocaleDateString()
+    id:Date.now(),
+    name:fullName.value,
+    company:company.value,
+    phone:phone.value,
+    disposition:disposition.value,
+    status:status.value,
+    notes:notes.value,
+    agent:currentUser,
+    date:new Date().toLocaleString(),
+    day:new Date().toLocaleDateString()
   });
 
-  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
-
-  fullName.value = company.value = phone.value = email.value = "";
-  disposition.value = "";
-  document.getElementById("status").value = "Open";
-  notes.value = "Concern:\nAction Taken:";
-
+  localStorage.setItem(LOG_KEY,JSON.stringify(logs));
+  fullName.value=company.value=phone.value=email.value="";
+  notes.value="Concern:\nAction Taken:";
   renderLogs();
   if(isAdmin) renderAnalytics();
 }
 
 function renderLogs(){
-  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
-  const q = search.value.toLowerCase();
-  logTable.innerHTML = "";
+  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
+  logTable.innerHTML="";
+  let today=new Date().toLocaleDateString(), t=0,o=0,r=0;
 
-  logs.filter(l =>
-    l.name.toLowerCase().includes(q) ||
-    l.phone.includes(q) ||
-    l.company.toLowerCase().includes(q)
-  ).forEach((l,i)=>{
-    logTable.innerHTML += `
+  logs.forEach((l,i)=>{
+    if(l.day===today) t++;
+    if(l.status==="Open") o++;
+    if(l.status==="Resolved") r++;
+
+    logTable.innerHTML+=`
     <tr>
       <td>${l.name}</td>
       <td>${l.company}</td>
       <td>${l.phone}</td>
-      <td>${l.email || ""}</td>
       <td>${l.disposition}</td>
-      <td>${l.status}</td>
+      <td><span class="badge ${l.status==="Open"?"open":l.status==="Follow Up"?"follow":"resolved"}">${l.status}</span></td>
       <td>
         <span class="toggle" onclick="toggle(${i})">View</span>
         <div id="n${i}" class="note-box hidden">${l.notes}</div>
       </td>
       <td>${l.agent}</td>
       <td>${l.date}</td>
+      ${isAdmin?`<td><button class="danger" onclick="deleteLog(${l.id})">Delete</button></td>`:""}
     </tr>`;
   });
+
+  todayCount.innerText=t;
+  openCount.innerText=o;
+  resolvedCount.innerText=r;
 }
 
-function toggle(i){
-  document.getElementById("n"+i).classList.toggle("hidden");
+function toggle(i){ document.getElementById("n"+i).classList.toggle("hidden"); }
+
+function deleteLog(id){
+  if(!confirm("Delete this log permanently?")) return;
+  let logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
+  logs=logs.filter(l=>l.id!==id);
+  localStorage.setItem(LOG_KEY,JSON.stringify(logs));
+  renderLogs();
+  renderAnalytics();
 }
 
-/* 📊 ANALYTICS */
 function renderAnalytics(){
-  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
-  const map = {};
-  analyticsTable.innerHTML = "";
+  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
+  const map={};
+  analyticsTable.innerHTML="";
 
   logs.forEach(l=>{
-    const key = l.day + "|" + l.agent;
-    map[key] = (map[key] || 0) + 1;
+    const key=l.day+"|"+l.agent;
+    map[key]=(map[key]||0)+1;
   });
 
-  Object.keys(map).forEach(k=>{
-    const [day,agent] = k.split("|");
-    analyticsTable.innerHTML += `
-      <tr>
-        <td>${day}</td>
-        <td>${agent}</td>
-        <td>${map[k]}</td>
-      </tr>`;
+  Object.entries(map).forEach(([k,v])=>{
+    const [day,agent]=k.split("|");
+    analyticsTable.innerHTML+=`
+      <tr><td>${day}</td><td>${agent}</td><td>${v}</td></tr>`;
   });
 }
 
-/* 📁 EXCEL EXPORT */
 function exportCSV(){
-  const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
-  let csv = "Name,Company,Phone,Email,Disposition,Status,Agent,Date,Notes\n";
-
+  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
+  let csv="Name,Company,Phone,Disposition,Status,Agent,Date,Notes\n";
   logs.forEach(l=>{
-    csv += `"${l.name}","${l.company}","${l.phone}","${l.email}","${l.disposition}","${l.status}","${l.agent}","${l.date}","${l.notes.replace(/"/g,'""')}"\n`;
+    csv+=`"${l.name}","${l.company}","${l.phone}","${l.disposition}","${l.status}","${l.agent}","${l.date}","${l.notes.replace(/"/g,'""')}"\n`;
   });
-
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "call_logs_report.csv";
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="call_logs.csv";
   a.click();
 }
 
-/* ⌨ SHORTCUTS */
-document.addEventListener("keydown", e => {
-  if(e.ctrlKey && e.key === "Enter") addLog();
+document.addEventListener("keydown",e=>{
+  if(e.ctrlKey&&e.key==="Enter") addLog();
 });
 
-const saved = JSON.parse(localStorage.getItem(USER_KEY));
-if(saved){
-  currentUser = saved.email;
-  isAdmin = saved.isAdmin;
-  showApp();
-}
+const saved=JSON.parse(localStorage.getItem(USER_KEY));
+if(saved){ currentUser=saved.email; isAdmin=saved.isAdmin; showApp(); }
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
