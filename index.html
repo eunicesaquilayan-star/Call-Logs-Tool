@@ -2,204 +2,77 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Call Log Tool</title>
+<title>Call Log Tool (Multi-Agent)</title>
+
+<!-- Firebase v9 COMPAT (correct for single HTML file) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-:root {
-  --bg: #f4f6f9;
-  --card: #ffffff;
-  --text: #212529;
-  --muted: #6c757d;
-  --border: #dee2e6;
-  --primary: #0d6efd;
-  --hover: #eef4ff;
+:root{
+ --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
 }
-
-body.dark {
-  --bg: #121212;
-  --card: #1e1e1e;
-  --text: #e9ecef;
-  --muted: #adb5bd;
-  --border: #2a2a2a;
-  --primary: #4dabf7;
-  --hover: #2a2f3a;
+body.dark{
+ --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a;--primary:#4dabf7
 }
-
-body {
-  font-family: Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  margin: 0;
-}
-
-.container {
-  max-width: 1350px;
-  margin: 30px auto;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.08);
-}
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--border);
-  padding-bottom: 14px;
-  margin-bottom: 25px;
-}
-header img { height: 95px; }
-
-button {
-  padding: 8px 16px;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-button:hover { opacity:.9; }
-
-input, select, textarea {
-  width: 100%;
-  padding: 10px;
-  margin: 6px 0 14px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--text);
-}
-
-textarea {
-  min-height: 120px;
-  font-family: monospace;
-}
-
-.section {
-  background: var(--bg);
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 30px;
-}
-
-.hidden { display:none; }
-
-/* DASHBOARD */
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
-  gap: 15px;
-  margin-bottom: 25px;
-}
-.card {
-  background: var(--card);
-  border-radius: 10px;
-  padding: 18px;
-  box-shadow: 0 6px 15px rgba(0,0,0,.05);
-}
-.card h4 { margin: 0 0 8px; color: var(--muted); }
-.card span { font-size: 28px; font-weight: bold; }
-
-/* TABLE */
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th, td {
-  border: 1px solid var(--border);
-  padding: 10px;
-  vertical-align: top;
-}
-th { background: var(--bg); }
-tr:nth-child(even) { background: var(--bg); }
-tr:hover { background: var(--hover); }
-
-/* BADGES */
-.badge {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: bold;
-}
-.open { background:#fff3cd; color:#664d03; }
-.follow { background:#cfe2ff; color:#084298; }
-.resolved { background:#d1e7dd; color:#0f5132; }
-
-/* NOTES */
-.note-box {
-  margin-top: 8px;
-  padding: 12px;
-  background: var(--bg);
-  border-radius: 6px;
-  white-space: pre-line;
-}
-
-.toggle {
-  color: var(--primary);
-  cursor:pointer;
-  font-weight:bold;
-}
-
-/* ADMIN */
-.admin {
-  background: #fff3cd;
-  padding:25px;
-  border-radius:12px;
-}
-body.dark .admin {
-  background:#2b250f;
-}
-
-.danger {
-  background:#dc3545;
-}
-.danger:hover { background:#bb2d3b; }
-
-.header-actions {
-  text-align:right;
+body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
+.container{max-width:1400px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
+header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
+button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer}
+input,select,textarea{width:100%;padding:10px;margin:6px 0 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text)}
+textarea{min-height:180px;white-space:pre-wrap}
+.section{background:var(--bg);padding:20px;border-radius:10px;margin-bottom:30px}
+.hidden{display:none}
+table{width:100%;border-collapse:collapse}
+th,td{border:1px solid var(--border);padding:10px}
+th{background:var(--bg)}
+.toggle{color:var(--primary);cursor:pointer;font-weight:bold}
+.note-box{background:var(--bg);padding:15px;border-radius:6px;white-space:pre-wrap}
+.badge{padding:4px 8px;border-radius:6px;font-size:12px;font-weight:bold}
+.open{background:#fff3cd}.resolved{background:#d1e7dd}.follow{background:#cfe2ff}
+.admin{background:#fff3cd;padding:25px;border-radius:12px}
+body.dark .admin{background:#2b250f}
+.agent-badge{
+ position:fixed;top:15px;right:20px;
+ background:#0d6efd;color:white;
+ padding:8px 14px;border-radius:20px;
+ font-size:13px
 }
 </style>
 </head>
 
 <body>
 
+<div id="agentBadge" class="agent-badge hidden"></div>
+
 <div class="container">
 
 <header>
-  <img src="images/SL-Logo4.png">
-  <div class="header-actions">
-    <button onclick="toggleTheme()">🌙 / ☀️</button><br><br>
-    <strong id="roleLabel"></strong><br>
-    <span id="userLabel"></span><br>
-    <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
+  <img src="images/SL-Logo4.png" alt="SL Logo">
+  <div>
+    <button onclick="toggleTheme()">🌙 / ☀️</button>
+    <button onclick="logout()">Logout</button>
   </div>
 </header>
 
-<!-- LOGIN -->
 <div id="loginSection">
-  <h2>Login</h2>
+  <h3>Login</h3>
   <input id="loginEmail" placeholder="Agent Email">
-  <input id="adminPassword" type="password" placeholder="Admin Password (optional)">
+  <input id="adminPassword" type="password" placeholder="Admin Password">
   <button onclick="login()">Login</button>
 </div>
 
-<!-- APP -->
 <div id="appSection" class="hidden">
-
-<div class="cards">
-  <div class="card"><h4>Logs Today</h4><span id="todayCount">0</span></div>
-  <div class="card"><h4>Open</h4><span id="openCount">0</span></div>
-  <div class="card"><h4>Resolved</h4><span id="resolvedCount">0</span></div>
-</div>
 
 <div class="section">
 <h3>New Call Log</h3>
 
-<input id="fullName" placeholder="Complete Name *">
-<input id="company" placeholder="Company Name *">
+<input id="fullName" placeholder="Customer Name *">
 <input id="phone" placeholder="Phone Number *">
-<input id="email" placeholder="Email / User ID">
+<input id="refId" placeholder="User ID / Order # / Invoice #">
 
 <select id="disposition">
   <option value="">Disposition *</option>
@@ -215,18 +88,25 @@ body.dark .admin {
   <option>Resolved</option>
 </select>
 
-<textarea id="notes">Concern:
-Action Taken:</textarea>
+<textarea id="notes">CONCERN:
 
-<button onclick="addLog()">Submit Log (Ctrl + Enter)</button>
+
+
+ACTION TAKEN:</textarea>
+
+<button onclick="addLog()">Submit Log</button>
+</div>
+
+<div class="section">
+<h3>Search</h3>
+<input id="search" placeholder="Search anything" onkeyup="renderLogs()">
 </div>
 
 <table>
 <thead>
 <tr>
-<th>Name</th><th>Company</th><th>Phone</th><th>Disposition</th>
-<th>Status</th><th>Notes</th><th>Agent</th><th>Date</th>
-<th id="adminCol" class="hidden">Actions</th>
+<th>Name</th><th>Phone</th><th>ID</th>
+<th>Disposition</th><th>Status</th><th>Notes</th><th>Agent</th><th>Date</th>
 </tr>
 </thead>
 <tbody id="logTable"></tbody>
@@ -234,152 +114,121 @@ Action Taken:</textarea>
 
 <div id="adminPanel" class="admin hidden">
 <h3>Admin Dashboard</h3>
-<button onclick="exportCSV()">⬇ Download Excel (CSV)</button>
-<table style="margin-top:20px;">
-<thead><tr><th>Date</th><th>Agent</th><th>Total Logs</th></tr></thead>
-<tbody id="analyticsTable"></tbody>
-</table>
+<canvas id="chart"></canvas>
 </div>
 
 </div>
 </div>
 
 <script>
-const LOG_KEY="callLogs", USER_KEY="currentUser", THEME_KEY="theme", ADMIN_PASSWORD="rperez@123";
-let currentUser="", isAdmin=false;
+/* ========= FIREBASE INIT ========= */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
+};
 
-/* THEME */
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ========= APP LOGIC ========= */
+const ADMIN_PASSWORD = "rperez@123";
+let currentUser = "";
+let isAdmin = false;
+let logsCache = [];
+let chart;
+
 function toggleTheme(){
-  document.body.classList.toggle("dark");
-  localStorage.setItem(THEME_KEY, document.body.classList.contains("dark")?"dark":"light");
+ document.body.classList.toggle("dark");
 }
-if(localStorage.getItem(THEME_KEY)==="dark") document.body.classList.add("dark");
 
-/* LOGIN */
 function login(){
-  if(!loginEmail.value) return alert("Email required");
-  isAdmin=adminPassword.value===ADMIN_PASSWORD;
-  currentUser=loginEmail.value;
-  localStorage.setItem(USER_KEY,JSON.stringify({email:currentUser,isAdmin}));
-  showApp();
+ if(!loginEmail.value) return alert("Email required");
+
+ currentUser = loginEmail.value;
+ isAdmin = adminPassword.value === ADMIN_PASSWORD;
+
+ agentBadge.textContent = "Agent: " + currentUser;
+ agentBadge.classList.remove("hidden");
+
+ loginSection.classList.add("hidden");
+ appSection.classList.remove("hidden");
+ adminPanel.classList.toggle("hidden", !isAdmin);
+
+ listenLogs();
 }
-function showApp(){
-  loginSection.classList.add("hidden");
-  appSection.classList.remove("hidden");
-  roleLabel.innerText=isAdmin?"ADMIN":"AGENT";
-  userLabel.innerText=currentUser;
-  logoutBtn.classList.remove("hidden");
-  adminPanel.classList.toggle("hidden",!isAdmin);
-  adminCol.classList.toggle("hidden",!isAdmin);
-  renderLogs();
-  if(isAdmin) renderAnalytics();
+
+function logout(){ location.reload(); }
+
+async function addLog(){
+ if(!fullName.value || !phone.value || !disposition.value)
+   return alert("Missing required fields");
+
+ await db.collection("logs").add({
+   name: fullName.value,
+   phone: phone.value,
+   refId: refId.value,
+   disposition: disposition.value,
+   status: status.value,
+   notes: notes.value,
+   agent: currentUser,
+   created: firebase.firestore.FieldValue.serverTimestamp(),
+   day: new Date().toLocaleDateString()
+ });
+
+ notes.value = "CONCERN:\n\n\nACTION TAKEN:";
 }
-function logout(){ localStorage.removeItem(USER_KEY); location.reload(); }
 
-/* LOGS */
-function addLog(){
-  if(!fullName.value||!company.value||!phone.value||!disposition.value)
-    return alert("Missing required fields");
-
-  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
-  logs.push({
-    id:Date.now(),
-    name:fullName.value,
-    company:company.value,
-    phone:phone.value,
-    disposition:disposition.value,
-    status:status.value,
-    notes:notes.value,
-    agent:currentUser,
-    date:new Date().toLocaleString(),
-    day:new Date().toLocaleDateString()
-  });
-
-  localStorage.setItem(LOG_KEY,JSON.stringify(logs));
-  fullName.value=company.value=phone.value=email.value="";
-  notes.value="Concern:\nAction Taken:";
-  renderLogs();
-  if(isAdmin) renderAnalytics();
+function listenLogs(){
+ db.collection("logs").orderBy("created","desc")
+ .onSnapshot(snap=>{
+   logsCache = snap.docs.map(d=>({id:d.id,...d.data()}));
+   renderLogs();
+   if(isAdmin) renderChart();
+ });
 }
 
 function renderLogs(){
-  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
-  logTable.innerHTML="";
-  let today=new Date().toLocaleDateString(), t=0,o=0,r=0;
+ const q = search.value.toLowerCase();
+ logTable.innerHTML = "";
 
-  logs.forEach((l,i)=>{
-    if(l.day===today) t++;
-    if(l.status==="Open") o++;
-    if(l.status==="Resolved") r++;
-
-    logTable.innerHTML+=`
-    <tr>
-      <td>${l.name}</td>
-      <td>${l.company}</td>
-      <td>${l.phone}</td>
-      <td>${l.disposition}</td>
-      <td><span class="badge ${l.status==="Open"?"open":l.status==="Follow Up"?"follow":"resolved"}">${l.status}</span></td>
-      <td>
-        <span class="toggle" onclick="toggle(${i})">View</span>
-        <div id="n${i}" class="note-box hidden">${l.notes}</div>
-      </td>
-      <td>${l.agent}</td>
-      <td>${l.date}</td>
-      ${isAdmin?`<td><button class="danger" onclick="deleteLog(${l.id})">Delete</button></td>`:""}
-    </tr>`;
-  });
-
-  todayCount.innerText=t;
-  openCount.innerText=o;
-  resolvedCount.innerText=r;
+ logsCache
+ .filter(l => JSON.stringify(l).toLowerCase().includes(q))
+ .forEach((l,i)=>{
+   logTable.innerHTML += `
+   <tr>
+     <td>${l.name}</td>
+     <td>${l.phone}</td>
+     <td>${l.refId || ""}</td>
+     <td>${l.disposition}</td>
+     <td><span class="badge ${l.status==="Open"?"open":l.status==="Resolved"?"resolved":"follow"}">${l.status}</span></td>
+     <td>
+       <span class="toggle" onclick="document.getElementById('n${i}').classList.toggle('hidden')">View</span>
+       <div id="n${i}" class="note-box hidden">${l.notes}</div>
+     </td>
+     <td>${l.agent}</td>
+     <td>${l.created ? l.created.toDate().toLocaleString() : ""}</td>
+   </tr>`;
+ });
 }
 
-function toggle(i){ document.getElementById("n"+i).classList.toggle("hidden"); }
+function renderChart(){
+ const map = {};
+ logsCache.forEach(l => map[l.day] = (map[l.day] || 0) + 1);
 
-function deleteLog(id){
-  if(!confirm("Delete this log permanently?")) return;
-  let logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
-  logs=logs.filter(l=>l.id!==id);
-  localStorage.setItem(LOG_KEY,JSON.stringify(logs));
-  renderLogs();
-  renderAnalytics();
+ if(chart) chart.destroy();
+ chart = new Chart(chart, {
+   type: "bar",
+   data: {
+     labels: Object.keys(map),
+     datasets: [{ label: "Logs Per Day", data: Object.values(map) }]
+   }
+ });
 }
-
-function renderAnalytics(){
-  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
-  const map={};
-  analyticsTable.innerHTML="";
-  logs.forEach(l=>{
-    const key=l.day+"|"+l.agent;
-    map[key]=(map[key]||0)+1;
-  });
-  Object.entries(map).forEach(([k,v])=>{
-    const [day,agent]=k.split("|");
-    analyticsTable.innerHTML+=`<tr><td>${day}</td><td>${agent}</td><td>${v}</td></tr>`;
-  });
-}
-
-function exportCSV(){
-  const logs=JSON.parse(localStorage.getItem(LOG_KEY)||"[]");
-  let csv="Name,Company,Phone,Disposition,Status,Agent,Date,Notes\n";
-  logs.forEach(l=>{
-    csv+=`"${l.name}","${l.company}","${l.phone}","${l.disposition}","${l.status}","${l.agent}","${l.date}","${l.notes.replace(/"/g,'""')}"\n`;
-  });
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download="call_logs.csv";
-  a.click();
-}
-
-document.addEventListener("keydown",e=>{
-  if(e.ctrlKey&&e.key==="Enter") addLog();
-});
-
-const saved=JSON.parse(localStorage.getItem(USER_KEY));
-if(saved){ currentUser=saved.email; isAdmin=saved.isAdmin; showApp(); }
 </script>
 
 </body>
 </html>
-
-
