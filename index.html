@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Call Log Tool (Multi-Agent)</title>
 
-<!-- Firebase v9 COMPAT (correct for single HTML file) -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -19,28 +19,30 @@ body.dark{
  --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a;--primary:#4dabf7
 }
 body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
-.container{max-width:1400px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
+.container{max-width:1600px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
 header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
-button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer}
+button{background:var(--primary);color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer}
 input,select,textarea{width:100%;padding:10px;margin:6px 0 14px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text)}
-textarea{min-height:180px;white-space:pre-wrap}
+textarea{min-height:220px}
 .section{background:var(--bg);padding:20px;border-radius:10px;margin-bottom:30px}
 .hidden{display:none}
 table{width:100%;border-collapse:collapse}
-th,td{border:1px solid var(--border);padding:10px}
+th,td{border:1px solid var(--border);padding:10px;vertical-align:top}
 th{background:var(--bg)}
 .toggle{color:var(--primary);cursor:pointer;font-weight:bold}
-.note-box{background:var(--bg);padding:15px;border-radius:6px;white-space:pre-wrap}
+.note-box{background:var(--card);padding:20px;border-radius:8px}
+.note-title{font-weight:bold;margin-top:10px}
 .badge{padding:4px 8px;border-radius:6px;font-size:12px;font-weight:bold}
-.open{background:#fff3cd}.resolved{background:#d1e7dd}.follow{background:#cfe2ff}
-.admin{background:#fff3cd;padding:25px;border-radius:12px}
-body.dark .admin{background:#2b250f}
-.agent-badge{
- position:fixed;top:15px;right:20px;
- background:#0d6efd;color:white;
- padding:8px 14px;border-radius:20px;
- font-size:13px
-}
+.open{background:#fff3cd}
+.resolved{background:#d1e7dd}
+.follow{background:#cfe2ff}
+.sla-ok{background:#d1e7dd}
+.sla-warn{background:#fff3cd}
+.sla-breach{background:#f8d7da}
+.admin{background:var(--bg);padding:25px;border-radius:12px}
+.agent-badge{position:fixed;top:15px;right:20px;background:var(--primary);color:white;padding:8px 14px;border-radius:20px;font-size:13px}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:15px}
+.action-btns button{margin-right:6px}
 </style>
 </head>
 
@@ -51,44 +53,45 @@ body.dark .admin{background:#2b250f}
 <div class="container">
 
 <header>
-  <img src="images/SL-Logo4.png" alt="SL Logo">
-  <div>
-    <button onclick="toggleTheme()">🌙 / ☀️</button>
-    <button onclick="logout()">Logout</button>
-  </div>
+<strong>📞 Call Log Tool</strong>
+<div>
+<button onclick="toggleTheme()">🌙 / ☀️</button>
+<button onclick="logout()">Logout</button>
+</div>
 </header>
 
 <div id="loginSection">
-  <h3>Login</h3>
-  <input id="loginEmail" placeholder="Agent Email">
-  <input id="adminPassword" type="password" placeholder="Admin Password">
-  <button onclick="login()">Login</button>
+<h3>Login</h3>
+<input id="loginEmail" placeholder="Agent Email">
+<input id="adminPassword" type="password" placeholder="Admin Password">
+<button onclick="login()">Login</button>
 </div>
 
 <div id="appSection" class="hidden">
 
 <div class="section">
 <h3>New Call Log</h3>
-
+<input id="company" placeholder="Company Name *">
 <input id="fullName" placeholder="Customer Name *">
 <input id="phone" placeholder="Phone Number *">
-<input id="refId" placeholder="User ID / Order # / Invoice #">
+<input id="refId" placeholder="User ID / Order # / Invoice # *">
 
 <select id="disposition">
-  <option value="">Disposition *</option>
-  <option>Password Reset</option>
-  <option>Order Entry</option>
-  <option>Order Status / Tracking</option>
-  <option>General Inquiry</option>
+<option value="">Disposition *</option>
+<option>Password Reset</option>
+<option>Order Entry</option>
+<option>Order Status / Tracking</option>
+<option>General Inquiry</option>
 </select>
 
 <select id="status">
-  <option>Open</option>
-  <option>Follow Up</option>
-  <option>Resolved</option>
+<option>Open</option>
+<option>Follow Up</option>
+<option>Resolved</option>
 </select>
 
 <textarea id="notes">CONCERN:
+
 
 
 
@@ -98,134 +101,153 @@ ACTION TAKEN:</textarea>
 </div>
 
 <div class="section">
-<h3>Search</h3>
-<input id="search" placeholder="Search anything" onkeyup="renderLogs()">
+<h3>Search & Filters</h3>
+<div class="filters">
+<input id="searchText" placeholder="Search anything">
+<input id="filterCompany" placeholder="Company">
+<input id="filterDate" type="date">
+<select id="filterDisposition">
+<option value="">All Dispositions</option>
+<option>Password Reset</option>
+<option>Order Entry</option>
+<option>Order Status / Tracking</option>
+<option>General Inquiry</option>
+</select>
+<button onclick="exportCSV()">📤 Export CSV</button>
+</div>
 </div>
 
 <table>
 <thead>
 <tr>
-<th>Name</th><th>Phone</th><th>ID</th>
-<th>Disposition</th><th>Status</th><th>Notes</th><th>Agent</th><th>Date</th>
+<th>Company</th><th>Name</th><th>Phone</th><th>Ref</th>
+<th>Disposition</th><th>Status</th><th>SLA</th><th>Notes</th><th>Date</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="logTable"></tbody>
 </table>
 
 <div id="adminPanel" class="admin hidden">
-<h3>Admin Dashboard</h3>
-<canvas id="chart"></canvas>
+<h3>📊 Admin Dashboard</h3>
+<canvas id="logsPerDay"></canvas>
 </div>
 
 </div>
 </div>
 
 <script>
-/* ========= FIREBASE INIT ========= */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "XXXX",
-  appId: "XXXX"
+/* FIREBASE */
+const firebaseConfig={
+ apiKey:"YOUR_API_KEY",
+ authDomain:"YOUR_PROJECT.firebaseapp.com",
+ projectId:"YOUR_PROJECT_ID"
 };
-
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db=firebase.firestore();
 
-/* ========= APP LOGIC ========= */
-const ADMIN_PASSWORD = "rperez@123";
-let currentUser = "";
-let isAdmin = false;
-let logsCache = [];
-let chart;
+/* APP */
+const ADMIN_PASSWORD="rperez@123";
+let currentUser="",isAdmin=false,logsCache=[],chart;
 
-function toggleTheme(){
- document.body.classList.toggle("dark");
-}
+function toggleTheme(){document.body.classList.toggle("dark")}
+function logout(){location.reload()}
 
 function login(){
- if(!loginEmail.value) return alert("Email required");
-
- currentUser = loginEmail.value;
- isAdmin = adminPassword.value === ADMIN_PASSWORD;
-
- agentBadge.textContent = "Agent: " + currentUser;
+ currentUser=loginEmail.value;
+ isAdmin=adminPassword.value===ADMIN_PASSWORD;
+ agentBadge.textContent="Agent: "+currentUser;
  agentBadge.classList.remove("hidden");
-
  loginSection.classList.add("hidden");
  appSection.classList.remove("hidden");
- adminPanel.classList.toggle("hidden", !isAdmin);
-
+ adminPanel.classList.toggle("hidden",!isAdmin);
  listenLogs();
 }
 
-function logout(){ location.reload(); }
-
 async function addLog(){
- if(!fullName.value || !phone.value || !disposition.value)
-   return alert("Missing required fields");
-
  await db.collection("logs").add({
-   name: fullName.value,
-   phone: phone.value,
-   refId: refId.value,
-   disposition: disposition.value,
-   status: status.value,
-   notes: notes.value,
-   agent: currentUser,
-   created: firebase.firestore.FieldValue.serverTimestamp(),
-   day: new Date().toLocaleDateString()
+  company:company.value,
+  name:fullName.value,
+  phone:phone.value,
+  refId:refId.value,
+  disposition:disposition.value,
+  status:status.value,
+  notes:notes.value,
+  created:firebase.firestore.FieldValue.serverTimestamp(),
+  day:new Date().toISOString().split("T")[0]
  });
-
- notes.value = "CONCERN:\n\n\nACTION TAKEN:";
+ notes.value="CONCERN:\n\n\n\nACTION TAKEN:";
 }
 
 function listenLogs(){
- db.collection("logs").orderBy("created","desc")
- .onSnapshot(snap=>{
-   logsCache = snap.docs.map(d=>({id:d.id,...d.data()}));
-   renderLogs();
-   if(isAdmin) renderChart();
+ db.collection("logs").orderBy("created","desc").onSnapshot(s=>{
+  logsCache=s.docs.map(d=>({id:d.id,...d.data()}));
+  renderLogs();
+  if(isAdmin) renderChart();
  });
+}
+
+function slaBadge(log){
+ if(log.status==="Resolved") return `<span class="badge sla-ok">OK</span>`;
+ const hours=(Date.now()-log.created.toDate())/36e5;
+ if(hours>24) return `<span class="badge sla-breach">Breach</span>`;
+ return `<span class="badge sla-warn">Pending</span>`;
 }
 
 function renderLogs(){
- const q = search.value.toLowerCase();
- logTable.innerHTML = "";
-
- logsCache
- .filter(l => JSON.stringify(l).toLowerCase().includes(q))
- .forEach((l,i)=>{
-   logTable.innerHTML += `
-   <tr>
-     <td>${l.name}</td>
-     <td>${l.phone}</td>
-     <td>${l.refId || ""}</td>
-     <td>${l.disposition}</td>
-     <td><span class="badge ${l.status==="Open"?"open":l.status==="Resolved"?"resolved":"follow"}">${l.status}</span></td>
-     <td>
-       <span class="toggle" onclick="document.getElementById('n${i}').classList.toggle('hidden')">View</span>
-       <div id="n${i}" class="note-box hidden">${l.notes}</div>
-     </td>
-     <td>${l.agent}</td>
-     <td>${l.created ? l.created.toDate().toLocaleString() : ""}</td>
-   </tr>`;
+ logTable.innerHTML="";
+ logsCache.filter(l=>{
+  return (!filterCompany.value||l.company.toLowerCase().includes(filterCompany.value.toLowerCase()))
+   &&(!filterDate.value||l.day===filterDate.value)
+   &&(!filterDisposition.value||l.disposition===filterDisposition.value)
+   &&JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase());
+ }).forEach((l,i)=>{
+  logTable.innerHTML+=`
+  <tr>
+   <td>${l.company}</td>
+   <td>${l.name}</td>
+   <td>${l.phone}</td>
+   <td>${l.refId}</td>
+   <td>${l.disposition}</td>
+   <td>${l.status}</td>
+   <td>${slaBadge(l)}</td>
+   <td><span class="toggle" onclick="n${i}.classList.toggle('hidden')">View</span>
+    <div id="n${i}" class="note-box hidden">${l.notes}</div></td>
+   <td>${l.created?.toDate().toLocaleString()}</td>
+   <td class="action-btns">
+    ${isAdmin?`<button onclick="editLog('${l.id}')">✏️</button>
+    <button onclick="deleteLog('${l.id}')">🗑️</button>`:""}
+   </td>
+  </tr>`;
  });
 }
 
-function renderChart(){
- const map = {};
- logsCache.forEach(l => map[l.day] = (map[l.day] || 0) + 1);
+function editLog(id){
+ const n=prompt("Edit notes:");
+ if(n) db.collection("logs").doc(id).update({notes:n});
+}
+function deleteLog(id){
+ if(confirm("Delete this log?")) db.collection("logs").doc(id).delete();
+}
 
- if(chart) chart.destroy();
- chart = new Chart(chart, {
-   type: "bar",
-   data: {
-     labels: Object.keys(map),
-     datasets: [{ label: "Logs Per Day", data: Object.values(map) }]
-   }
+function exportCSV(){
+ let csv="Company,Name,Phone,Ref,Disposition,Status,Date\n";
+ logsCache.forEach(l=>{
+  csv+=`${l.company},${l.name},${l.phone},${l.refId},${l.disposition},${l.status},${l.day}\n`;
+ });
+ const blob=new Blob([csv]);
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="call_logs.csv";
+ a.click();
+}
+
+function renderChart(){
+ const map={};
+ logsCache.forEach(l=>map[l.day]=(map[l.day]||0)+1);
+ chart?.destroy();
+ chart=new Chart(logsPerDay,{
+  type:"bar",
+  data:{labels:Object.keys(map),datasets:[{data:Object.values(map)}]}
  });
 }
 </script>
