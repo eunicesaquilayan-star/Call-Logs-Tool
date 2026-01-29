@@ -42,7 +42,7 @@ th,td{border:1px solid var(--border);padding:10px}
 <div class="container">
 
 <header>
- <img src="./images/SL-Logo4.png" alt="SL Logo4" height="95">
+ <img src="./images/SL-Logo4.png" height="95">
  <div>
   <button onclick="toggleTheme()">🌙 / ☀️</button>
   <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
@@ -86,9 +86,9 @@ th,td{border:1px solid var(--border);padding:10px}
 </select>
 
 <select id="status">
- <option>Open</option>
- <option>Follow Up</option>
- <option>Resolved</option>
+ <option value="Open">Open</option>
+ <option value="Follow Up">Follow Up</option>
+ <option value="Resolved">Resolved</option>
 </select>
 
 <textarea id="notes">CONCERN:
@@ -96,20 +96,6 @@ th,td{border:1px solid var(--border);padding:10px}
 ACTION TAKEN:</textarea>
 
 <button onclick="submitLog()">Submit Log</button>
-
-<h3>🔍 Search All Logs</h3>
-<div class="filters">
- <input id="searchText" placeholder="Keyword">
- <input id="searchCompany" placeholder="Company">
- <input id="searchDate" type="date">
- <select id="searchDisposition">
-  <option value="">All Dispositions</option>
-  <option>Password Reset</option>
-  <option>Order Entry</option>
-  <option>Order Status</option>
-  <option>General Inquiry</option>
- </select>
-</div>
 
 <table>
 <thead>
@@ -122,41 +108,6 @@ ACTION TAKEN:</textarea>
 
 </div>
 
-<!-- ADMIN -->
-<div id="adminSection" class="hidden admin-panel">
-
-<h3>📊 Admin Analytics</h3>
-
-<div class="stats-grid">
- <canvas id="logsPerDay"></canvas>
- <canvas id="topDisposition"></canvas>
- <canvas id="topCompany"></canvas>
-</div>
-
-<h4>⏱ Avg Notation Minutes per Agent</h4>
-<table>
-<thead><tr><th>Agent</th><th>Avg Minutes</th></tr></thead>
-<tbody id="timeTable"></tbody>
-</table>
-
-<button onclick="exportCSV()">📤 Export CSV</button>
-
-<h4>🗑 Logs</h4>
-<table>
-<thead>
-<tr>
-<th>Customer Name</th><th>Company</th><th>Disposition</th>
-<th>User ID / Order # / Inv #</th>
-<th>Minutes</th><th>Date</th><th>Action</th>
-</tr>
-</thead>
-<tbody id="adminLogs"></tbody>
-</table>
-
-</div>
-
-</div>
-
 <script>
 /* FIREBASE */
 firebase.initializeApp({
@@ -166,206 +117,75 @@ firebase.initializeApp({
 });
 const db=firebase.firestore();
 
-/* TOOL → COMPANY MAP (FIXED) */
+/* GLOBALS */
+let user="",startTime=0,logs=[];
+
+/* THEME */
+function toggleTheme(){document.body.classList.toggle("dark")}
+
+/* LOGIN */
+function login(){
+ user=email.value.trim();
+ if(!user) return alert("Email required");
+ startTime=Date.now();
+ loginSection.classList.add("hidden");
+ agentSection.classList.remove("hidden");
+}
+
+/* TOOL → COMPANY */
 const companyMap={
  Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
  Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
  "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
 };
 
-/* GLOBALS */
-let user="",isAdmin=false,startTime=0,logs=[],charts=[];
-
-/* ENTER KEY LOGIN */
-document.addEventListener("keydown",e=>{
- if(e.key==="Enter" && !loginSection.classList.contains("hidden")) login();
-});
-
-/* THEME */
-function toggleTheme(){document.body.classList.toggle("dark")}
-
-/* LOGOUT */
-function logout(){location.reload()}
-
-/* LOGIN */
-function login(){
- user=email.value.trim();
- if(!user) return alert("Email required");
-
- if(password.value){
-  if(password.value!=="rperez@123") return alert("Wrong admin password");
-  isAdmin=true;
- }
-
- startTime=Date.now();
-
- loginSection.classList.add("hidden");
- logoutBtn.classList.remove("hidden");
- agentBadge.textContent=user;
- agentBadge.classList.remove("hidden");
-
- if(isAdmin){
-  adminSection.classList.remove("hidden");
-  loadAdmin();
- } else {
-  agentSection.classList.remove("hidden");
-  loadAgentLogs();
- }
-}
-
-/* TOOL → COMPANY (CORRECT & SAFE) */
 function loadCompanies(){
  company.innerHTML='<option value="">Select Company *</option>';
  company.disabled=true;
-
  if(!companyMap[tool.value]) return;
-
  companyMap[tool.value].forEach(c=>{
-  const opt=document.createElement("option");
-  opt.value=c;
-  opt.textContent=c;
-  company.appendChild(opt);
+  const o=document.createElement("option");
+  o.value=c; o.textContent=c;
+  company.appendChild(o);
  });
-
  company.disabled=false;
 }
 
-/* SUBMIT LOG */
+/* 🔒 FIRESTORE SAFE CLEANER */
+function clean(obj){
+ return Object.fromEntries(
+  Object.entries(obj).filter(([_,v])=>v !== undefined)
+ );
+}
+
+/* ✅ SUBMIT LOG (FIXED) */
 async function submitLog(){
- try{
-  if(!tool.value || !company.value || !disposition.value){
-   alert("Please complete required fields");
-   return;
-  }
-
-  if(!startTime){
-   alert("Timer not started. Please re-login.");
-   return;
-  }
-
-  const mins=((Date.now()-startTime)/60000).toFixed(2);
-
-  await db.collection("logs").add({
-   agent:user,
-   tool:tool.value,
-   company:company.value,
-   ref:ref.value,
-   disposition:disposition.value,
-   status:status.value,
-   notes:notes.value,
-   minutes:Number(mins),
-   date:new Date().toISOString().split("T")[0],
-   created:firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  alert("✅ Log saved successfully");
-  location.reload();
-
- }catch(err){
-  console.error(err);
-  alert("❌ Error saving log: " + err.message);
+ if(!tool.value || !company.value || !disposition.value){
+  alert("Please complete required fields");
+  return;
  }
-}
 
-/* AGENT LOGS */
-function loadAgentLogs(){
- db.collection("logs").orderBy("created","desc").onSnapshot(s=>{
-  logs=s.docs.map(d=>({id:d.id,...d.data()}));
-  renderAgentLogs();
+ const minutes=((Date.now()-startTime)/60000).toFixed(2);
+
+ const data=clean({
+  agent:user,
+  tool:tool.value,
+  company:company.value,
+  ref:ref.value || "",
+  disposition:disposition.value,
+  status:status.value || "Open",   // ✅ DEFAULT
+  notes:notes.value || "",
+  minutes:Number(minutes),
+  date:new Date().toISOString().split("T")[0],
+  created:firebase.firestore.FieldValue.serverTimestamp()
  });
-}
 
-function renderAgentLogs(){
- agentLogs.innerHTML="";
- logs.filter(l=>{
-  return (!searchText.value||JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase()))
-   &&(!searchCompany.value||l.company.includes(searchCompany.value))
-   &&(!searchDate.value||l.date===searchDate.value)
-   &&(!searchDisposition.value||l.disposition===searchDisposition.value);
- }).forEach(l=>{
-  agentLogs.innerHTML+=`
-  <tr>
-   <td>${l.agent}</td>
-   <td>${l.company}</td>
-   <td>${l.disposition}</td>
-   <td>${l.status}</td>
-   <td class="note-box">${l.notes}</td>
-   <td>${l.date}</td>
-  </tr>`;
- });
-}
+ await db.collection("logs").add(data);
 
-/* ADMIN */
-function loadAdmin(){
- db.collection("logs").onSnapshot(s=>{
-  logs=s.docs.map(d=>({id:d.id,...d.data()}));
-  renderAdmin();
- });
-}
-
-function renderAdmin(){
- renderCharts();
- renderTimes();
- adminLogs.innerHTML="";
- logs.forEach(l=>{
-  adminLogs.innerHTML+=`
-  <tr>
-   <td>${l.agent}</td>
-   <td>${l.company}</td>
-   <td>${l.disposition}</td>
-   <td>${l.ref||""}</td>
-   <td>${l.minutes}</td>
-   <td>${l.date}</td>
-   <td><button onclick="del('${l.id}')">Delete</button></td>
-  </tr>`;
- });
-}
-
-/* CHARTS */
-function renderCharts(){
- charts.forEach(c=>c.destroy()); charts=[];
- const perDay={},disp={},comp={};
- logs.forEach(l=>{
-  perDay[l.date]=(perDay[l.date]||0)+1;
-  disp[l.disposition]=(disp[l.disposition]||0)+1;
-  comp[l.company]=(comp[l.company]||0)+1;
- });
- charts.push(new Chart(logsPerDay,{type:"bar",data:{labels:Object.keys(perDay),datasets:[{label:"Logs Per Day",data:Object.values(perDay)}]}}));
- charts.push(new Chart(topDisposition,{type:"bar",data:{labels:Object.keys(disp),datasets:[{label:"Top Disposition",data:Object.values(disp)}]}}));
- charts.push(new Chart(topCompany,{type:"bar",data:{labels:Object.keys(comp),datasets:[{label:"Top Company",data:Object.values(comp)}]}}));
-}
-
-/* TIME TABLE */
-function renderTimes(){
- const map={};
- logs.forEach(l=>{
-  if(!map[l.agent]) map[l.agent]=[];
-  map[l.agent].push(l.minutes);
- });
- timeTable.innerHTML="";
- Object.entries(map).forEach(([a,v])=>{
-  const avg=(v.reduce((x,y)=>x+y,0)/v.length).toFixed(2);
-  timeTable.innerHTML+=`<tr><td>${a}</td><td>${avg}</td></tr>`;
- });
-}
-
-/* DELETE */
-async function del(id){
- if(confirm("Delete log?")) await db.collection("logs").doc(id).delete();
-}
-
-/* EXPORT */
-function exportCSV(){
- let csv="Agent,Tool,Company,Disposition,User ID / Order # / Inv #,Minutes,Date\n";
- logs.forEach(l=>csv+=`${l.agent},${l.tool},${l.company},${l.disposition},${l.ref||""},${l.minutes},${l.date}\n`);
- const a=document.createElement("a");
- a.href=URL.createObjectURL(new Blob([csv]));
- a.download="logs.csv";
- a.click();
+ alert("✅ Log saved successfully");
+ location.reload();
 }
 </script>
 
 </body>
 </html>
-
-
