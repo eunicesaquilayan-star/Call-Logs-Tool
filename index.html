@@ -232,26 +232,39 @@ function loadCompanies(){
 
 /* SUBMIT LOG */
 async function submitLog(){
- if(!tool.value||!company.value||!disposition.value)
-  return alert("Please complete required fields");
+ try{
+  if(!tool.value || !company.value || !disposition.value){
+   alert("Please complete required fields");
+   return;
+  }
 
- const mins=((Date.now()-startTime)/60000).toFixed(2);
+  if(!startTime){
+   alert("Timer not started. Please re-login.");
+   return;
+  }
 
- await db.collection("logs").add({
-  agent:user,
-  tool:tool.value,
-  company:company.value,
-  ref:ref.value,
-  disposition:disposition.value,
-  status:status.value,
-  notes:notes.value,
-  minutes:+mins,
-  date:new Date().toISOString().split("T")[0],
-  created:firebase.firestore.FieldValue.serverTimestamp()
- });
+  const mins=((Date.now()-startTime)/60000).toFixed(2);
 
- alert("Log saved");
- location.reload();
+  await db.collection("logs").add({
+   agent:user,
+   tool:tool.value,
+   company:company.value,
+   ref:ref.value,
+   disposition:disposition.value,
+   status:status.value,
+   notes:notes.value,
+   minutes:Number(mins),
+   date:new Date().toISOString().split("T")[0],
+   created:firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  alert("✅ Log saved successfully");
+  location.reload();
+
+ }catch(err){
+  console.error(err);
+  alert("❌ Error saving log: " + err.message);
+ }
 }
 
 /* AGENT LOGS */
@@ -354,4 +367,5 @@ function exportCSV(){
 
 </body>
 </html>
+
 
