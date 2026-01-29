@@ -4,23 +4,34 @@
 <meta charset="UTF-8">
 <title>Call Logs Tool</title>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-:root{--bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd}
-body.dark{--bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a}
+:root{
+ --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
+}
+body.dark{
+ --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a
+}
 body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
 .container{max-width:1600px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
 header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
 button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
 input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
-textarea{min-height:200px}
+textarea{min-height:220px}
 .hidden{display:none}
 table{width:100%;border-collapse:collapse;margin-top:20px}
 th,td{border:1px solid var(--border);padding:10px}
+.note-box{white-space:pre-wrap}
 .agent-badge{position:fixed;top:15px;right:20px;background:var(--primary);color:white;padding:8px 14px;border-radius:20px}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.admin-panel{border:2px dashed var(--primary);padding:20px;margin-top:30px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
 </style>
 </head>
 
@@ -31,7 +42,7 @@ th,td{border:1px solid var(--border);padding:10px}
 <div class="container">
 
 <header>
- <img src="./images/SL-Logo4.png" height="95">
+ <img src="./images/SL-Logo4.png" alt="SL Logo4" height="95">
  <div>
   <button onclick="toggleTheme()">🌙 / ☀️</button>
   <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
@@ -42,7 +53,7 @@ th,td{border:1px solid var(--border);padding:10px}
 <div id="loginSection">
  <h3>Login</h3>
  <input id="email" placeholder="Email">
- <input id="password" type="password" placeholder="Admin Password">
+ <input id="password" type="password" placeholder="Admin Password (admins only)">
  <button onclick="login()">Login</button>
 </div>
 
@@ -62,6 +73,8 @@ th,td{border:1px solid var(--border);padding:10px}
  <option value="">Select Company *</option>
 </select>
 
+<input id="name" placeholder="Customer Name">
+<input id="phone" placeholder="Phone">
 <input id="ref" placeholder="User ID / Order # / Inv #">
 
 <select id="disposition">
@@ -83,6 +96,63 @@ th,td{border:1px solid var(--border);padding:10px}
 ACTION TAKEN:</textarea>
 
 <button onclick="submitLog()">Submit Log</button>
+
+<h3>🔍 Search All Logs</h3>
+<div class="filters">
+ <input id="searchText" placeholder="Keyword">
+ <input id="searchCompany" placeholder="Company">
+ <input id="searchDate" type="date">
+ <select id="searchDisposition">
+  <option value="">All Dispositions</option>
+  <option>Password Reset</option>
+  <option>Order Entry</option>
+  <option>Order Status</option>
+  <option>General Inquiry</option>
+ </select>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
+</tr>
+</thead>
+<tbody id="agentLogs"></tbody>
+</table>
+
+</div>
+
+<!-- ADMIN -->
+<div id="adminSection" class="hidden admin-panel">
+
+<h3>📊 Admin Analytics</h3>
+
+<div class="stats-grid">
+ <canvas id="logsPerDay"></canvas>
+ <canvas id="topDisposition"></canvas>
+ <canvas id="topCompany"></canvas>
+</div>
+
+<h4>⏱ Avg Notation Minutes per Agent</h4>
+<table>
+<thead><tr><th>Agent</th><th>Avg Minutes</th></tr></thead>
+<tbody id="timeTable"></tbody>
+</table>
+
+<button onclick="exportCSV()">📤 Export CSV</button>
+
+<h4>🗑 Logs</h4>
+<table>
+<thead>
+<tr>
+<th>Agent</th><th>Company</th><th>Disposition</th>
+<th>User ID / Order # / Inv #</th>
+<th>Minutes</th><th>Date</th><th>Action</th>
+</tr>
+</thead>
+<tbody id="adminLogs"></tbody>
+</table>
+
 </div>
 
 </div>
@@ -96,66 +166,74 @@ firebase.initializeApp({
 });
 const db=firebase.firestore();
 
-/* TOOL → COMPANY (STRICT MATCH) */
+/* TOOL → COMPANY MAP (FIXED) */
 const companyMap={
- "Shopify":[
-  "Bayada Wear",
-  "First Watch Shop",
-  "First Watch Swag"
- ],
- "Marcom":[
-  "Cash America",
-  "Choice Hotels",
-  "Dave & Buster's / Main Event"
- ],
- "Marketing Bench":[
-  "23 Restaurant Services",
-  "Aaron's, Inc.",
-  "Access Marketing Services"
- ]
+ Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
+ Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
+ "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
 };
 
-let user="",startTime=0;
+/* GLOBALS */
+let user="",isAdmin=false,startTime=0,logs=[],charts=[];
+
+/* ENTER KEY LOGIN */
+document.addEventListener("keydown",e=>{
+ if(e.key==="Enter" && !loginSection.classList.contains("hidden")) login();
+});
+
+/* THEME */
+function toggleTheme(){document.body.classList.toggle("dark")}
+
+/* LOGOUT */
+function logout(){location.reload()}
 
 /* LOGIN */
 function login(){
  user=email.value.trim();
  if(!user) return alert("Email required");
 
- if(password.value && password.value!=="rperez@123")
-  return alert("Wrong admin password");
+ if(password.value){
+  if(password.value!=="rperez@123") return alert("Wrong admin password");
+  isAdmin=true;
+ }
 
  startTime=Date.now();
+
  loginSection.classList.add("hidden");
  logoutBtn.classList.remove("hidden");
  agentBadge.textContent=user;
  agentBadge.classList.remove("hidden");
- agentSection.classList.remove("hidden");
+
+ if(isAdmin){
+  adminSection.classList.remove("hidden");
+  loadAdmin();
+ } else {
+  agentSection.classList.remove("hidden");
+  loadAgentLogs();
+ }
 }
 
-/* TOOL → COMPANY (FIXED) */
+/* TOOL → COMPANY (CORRECT & SAFE) */
 function loadCompanies(){
- const toolValue = tool.value;
+ company.innerHTML='<option value="">Select Company *</option>';
+ company.disabled=true;
 
- company.innerHTML = '<option value="">Select Company *</option>';
- company.disabled = true;
+ if(!companyMap[tool.value]) return;
 
- if(!companyMap[toolValue]) return;
-
- companyMap[toolValue].forEach(name=>{
+ companyMap[tool.value].forEach(c=>{
   const opt=document.createElement("option");
-  opt.value=name;
-  opt.textContent=name;
+  opt.value=c;
+  opt.textContent=c;
   company.appendChild(opt);
  });
 
- company.disabled = false;
+ company.disabled=false;
 }
 
-/* SUBMIT */
+/* SUBMIT LOG */
 async function submitLog(){
  if(!tool.value||!company.value||!disposition.value)
-  return alert("Complete required fields");
+  return alert("Please complete required fields");
 
  const mins=((Date.now()-startTime)/60000).toFixed(2);
 
@@ -168,16 +246,110 @@ async function submitLog(){
   status:status.value,
   notes:notes.value,
   minutes:+mins,
-  date:new Date().toISOString().split("T")[0]
+  date:new Date().toISOString().split("T")[0],
+  created:firebase.firestore.FieldValue.serverTimestamp()
  });
 
  alert("Log saved");
  location.reload();
 }
 
-/* UI */
-function toggleTheme(){document.body.classList.toggle("dark")}
-function logout(){location.reload()}
+/* AGENT LOGS */
+function loadAgentLogs(){
+ db.collection("logs").orderBy("created","desc").onSnapshot(s=>{
+  logs=s.docs.map(d=>({id:d.id,...d.data()}));
+  renderAgentLogs();
+ });
+}
+
+function renderAgentLogs(){
+ agentLogs.innerHTML="";
+ logs.filter(l=>{
+  return (!searchText.value||JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase()))
+   &&(!searchCompany.value||l.company.includes(searchCompany.value))
+   &&(!searchDate.value||l.date===searchDate.value)
+   &&(!searchDisposition.value||l.disposition===searchDisposition.value);
+ }).forEach(l=>{
+  agentLogs.innerHTML+=`
+  <tr>
+   <td>${l.agent}</td>
+   <td>${l.company}</td>
+   <td>${l.disposition}</td>
+   <td>${l.status}</td>
+   <td class="note-box">${l.notes}</td>
+   <td>${l.date}</td>
+  </tr>`;
+ });
+}
+
+/* ADMIN */
+function loadAdmin(){
+ db.collection("logs").onSnapshot(s=>{
+  logs=s.docs.map(d=>({id:d.id,...d.data()}));
+  renderAdmin();
+ });
+}
+
+function renderAdmin(){
+ renderCharts();
+ renderTimes();
+ adminLogs.innerHTML="";
+ logs.forEach(l=>{
+  adminLogs.innerHTML+=`
+  <tr>
+   <td>${l.agent}</td>
+   <td>${l.company}</td>
+   <td>${l.disposition}</td>
+   <td>${l.ref||""}</td>
+   <td>${l.minutes}</td>
+   <td>${l.date}</td>
+   <td><button onclick="del('${l.id}')">Delete</button></td>
+  </tr>`;
+ });
+}
+
+/* CHARTS */
+function renderCharts(){
+ charts.forEach(c=>c.destroy()); charts=[];
+ const perDay={},disp={},comp={};
+ logs.forEach(l=>{
+  perDay[l.date]=(perDay[l.date]||0)+1;
+  disp[l.disposition]=(disp[l.disposition]||0)+1;
+  comp[l.company]=(comp[l.company]||0)+1;
+ });
+ charts.push(new Chart(logsPerDay,{type:"bar",data:{labels:Object.keys(perDay),datasets:[{label:"Logs Per Day",data:Object.values(perDay)}]}}));
+ charts.push(new Chart(topDisposition,{type:"bar",data:{labels:Object.keys(disp),datasets:[{label:"Top Disposition",data:Object.values(disp)}]}}));
+ charts.push(new Chart(topCompany,{type:"bar",data:{labels:Object.keys(comp),datasets:[{label:"Top Company",data:Object.values(comp)}]}}));
+}
+
+/* TIME TABLE */
+function renderTimes(){
+ const map={};
+ logs.forEach(l=>{
+  if(!map[l.agent]) map[l.agent]=[];
+  map[l.agent].push(l.minutes);
+ });
+ timeTable.innerHTML="";
+ Object.entries(map).forEach(([a,v])=>{
+  const avg=(v.reduce((x,y)=>x+y,0)/v.length).toFixed(2);
+  timeTable.innerHTML+=`<tr><td>${a}</td><td>${avg}</td></tr>`;
+ });
+}
+
+/* DELETE */
+async function del(id){
+ if(confirm("Delete log?")) await db.collection("logs").doc(id).delete();
+}
+
+/* EXPORT */
+function exportCSV(){
+ let csv="Agent,Tool,Company,Disposition,User ID / Order # / Inv #,Minutes,Date\n";
+ logs.forEach(l=>csv+=`${l.agent},${l.tool},${l.company},${l.disposition},${l.ref||""},${l.minutes},${l.date}\n`);
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([csv]));
+ a.download="logs.csv";
+ a.click();
+}
 </script>
 
 </body>
