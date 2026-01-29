@@ -12,54 +12,136 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{font-family:Arial;background:#f4f6f9;margin:0}
-.container{max-width:1600px;margin:30px auto;background:#fff;padding:30px;border-radius:12px}
+:root{
+ --bg:#f4f6f9;
+ --card:#ffffff;
+ --text:#212529;
+ --border:#dee2e6;
+ --primary:#0d6efd;
+}
+body.dark{
+ --bg:#121212;
+ --card:#1e1e1e;
+ --text:#e9ecef;
+ --border:#2a2a2a;
+}
+body{
+ font-family:Arial;
+ background:var(--bg);
+ color:var(--text);
+ margin:0;
+}
+.container{
+ max-width:1600px;
+ margin:30px auto;
+ background:var(--card);
+ padding:30px;
+ border-radius:12px;
+}
+header{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ border-bottom:2px solid var(--border);
+ padding-bottom:15px;
+}
 .hidden{display:none}
-input,select,textarea,button{padding:10px;width:100%;margin-bottom:12px}
-button{background:#0d6efd;color:#fff;border:none;border-radius:6px;cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:20px}
-th,td{border:1px solid #ccc;padding:10px}
+button{
+ background:var(--primary);
+ color:#fff;
+ border:none;
+ padding:8px 14px;
+ border-radius:6px;
+ cursor:pointer;
+}
+input,select,textarea{
+ width:100%;
+ padding:10px;
+ margin-bottom:12px;
+ border-radius:6px;
+ border:1px solid var(--border);
+}
+table{
+ width:100%;
+ border-collapse:collapse;
+ margin-top:20px;
+}
+th,td{
+ border:1px solid var(--border);
+ padding:10px;
+}
 .note-box{white-space:pre-wrap}
-.admin-panel{border:2px dashed #0d6efd;padding:20px;margin-top:30px}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.agent-badge{
+ position:fixed;
+ top:15px;
+ right:20px;
+ background:var(--primary);
+ color:#fff;
+ padding:8px 14px;
+ border-radius:20px;
+}
+.filters{
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:12px;
+}
+.admin-panel{
+ border:2px dashed var(--primary);
+ padding:20px;
+ margin-top:30px;
+}
+.stats-grid{
+ display:grid;
+ grid-template-columns:1fr 1fr 1fr;
+ gap:20px;
+}
 </style>
 </head>
 
 <body>
 
+<div id="agentBadge" class="agent-badge hidden"></div>
+
 <div class="container">
 
-<h2>📞 Call Logs Tool</h2>
+<header>
+ <img src="./images/SL-Logo4.png" alt="SL Logo4" height="40">
+ <div>
+  <button onclick="toggleTheme()">🌙 / ☀️</button>
+ </div>
+</header>
 
 <!-- LOGIN -->
 <div id="loginSection">
-<input id="email" placeholder="Email">
-<input id="password" placeholder="Admin Password (admins only)" type="password">
-<button onclick="login()">Login</button>
+ <h3>Login</h3>
+ <input id="email" placeholder="Email">
+ <input id="password" type="password" placeholder="Admin Password (admins only)">
+ <button onclick="login()">Login</button>
 </div>
 
 <!-- AGENT -->
 <div id="agentSection" class="hidden">
+
 <h3>New Call Log</h3>
 
 <select id="tool">
-<option value="">Tool *</option>
-<option>Shopify</option>
-<option>Marcom</option>
-<option>Marketing Bench</option>
+ <option value="">Tool *</option>
+ <option>Shopify</option>
+ <option>Marcom</option>
+ <option>Marketing Bench</option>
 </select>
 
 <select id="company">
-<option value="">Company *</option>
-<option>Bayada Wear</option>
-<option>First Watch Shop</option>
-<option>First Watch Swag</option>
-<option>Cash America</option>
-<option>Choice Hotels</option>
-<option>Dave & Buster's / Main Event</option>
-<option>23 Restaurant Services</option>
-<option>Aaron's, Inc.</option>
-<option>Access Marketing Services</option>
+ <option value="">Company *</option>
+ <option>Bayada Wear</option>
+ <option>First Watch Shop</option>
+ <option>First Watch Swag</option>
+ <option>Cash America</option>
+ <option>Choice Hotels</option>
+ <option>Dave & Buster's / Main Event</option>
+ <option>23 Restaurant Services</option>
+ <option>Aaron's, Inc.</option>
+ <option>Access Marketing Services</option>
 </select>
 
 <input id="name" placeholder="Customer Name">
@@ -67,17 +149,17 @@ th,td{border:1px solid #ccc;padding:10px}
 <input id="ref" placeholder="Reference #">
 
 <select id="disposition">
-<option value="">Disposition *</option>
-<option>Password Reset</option>
-<option>Order Entry</option>
-<option>Order Status</option>
-<option>General Inquiry</option>
+ <option value="">Disposition *</option>
+ <option>Password Reset</option>
+ <option>Order Entry</option>
+ <option>Order Status</option>
+ <option>General Inquiry</option>
 </select>
 
 <select id="status">
-<option>Open</option>
-<option>Follow Up</option>
-<option>Resolved</option>
+ <option>Open</option>
+ <option>Follow Up</option>
+ <option>Resolved</option>
 </select>
 
 <textarea id="notes">CONCERN:
@@ -85,6 +167,30 @@ th,td{border:1px solid #ccc;padding:10px}
 ACTION TAKEN:</textarea>
 
 <button onclick="submitLog()">Submit Log</button>
+
+<h3>🔍 Search All Logs</h3>
+<div class="filters">
+ <input id="searchText" placeholder="Search keyword">
+ <input id="searchAgent" placeholder="Agent email">
+ <input id="searchCompany" placeholder="Company">
+ <select id="searchDisposition">
+  <option value="">All Dispositions</option>
+  <option>Password Reset</option>
+  <option>Order Entry</option>
+  <option>Order Status</option>
+  <option>General Inquiry</option>
+ </select>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
+</tr>
+</thead>
+<tbody id="agentLogs"></tbody>
+</table>
+
 </div>
 
 <!-- ADMIN -->
@@ -93,12 +199,12 @@ ACTION TAKEN:</textarea>
 <h3>📊 Admin Analytics</h3>
 
 <div class="stats-grid">
-<canvas id="logsPerDay"></canvas>
-<canvas id="topDisposition"></canvas>
-<canvas id="topCompany"></canvas>
+ <canvas id="logsPerDay"></canvas>
+ <canvas id="topDisposition"></canvas>
+ <canvas id="topCompany"></canvas>
 </div>
 
-<h4>⏱️ Avg Notation Minutes per Agent</h4>
+<h4>⏱ Avg Notation Minutes per Agent</h4>
 <table>
 <thead><tr><th>Agent</th><th>Avg Minutes</th></tr></thead>
 <tbody id="timeTable"></tbody>
@@ -106,7 +212,7 @@ ACTION TAKEN:</textarea>
 
 <button onclick="exportCSV()">📤 Export CSV</button>
 
-<h4>🗑️ Logs</h4>
+<h4>🗑 Logs</h4>
 <table>
 <thead>
 <tr><th>Agent</th><th>Company</th><th>Disposition</th><th>Minutes</th><th>Date</th><th>Action</th></tr>
@@ -125,7 +231,7 @@ firebase.initializeApp({
  authDomain:"call-logs-tool.firebaseapp.com",
  projectId:"call-logs-tool"
 });
-const db=firebase.firestore();
+const db = firebase.firestore();
 
 /* GLOBALS */
 let user="",isAdmin=false,startTime=0,logs=[];
@@ -134,6 +240,9 @@ let user="",isAdmin=false,startTime=0,logs=[];
 document.addEventListener("keydown",e=>{
  if(e.key==="Enter" && !loginSection.classList.contains("hidden")) login();
 });
+
+/* THEME */
+function toggleTheme(){document.body.classList.toggle("dark")}
 
 /* LOGIN */
 function login(){
@@ -146,23 +255,25 @@ function login(){
  }
 
  loginSection.classList.add("hidden");
+ agentBadge.textContent="User: "+user;
+ agentBadge.classList.remove("hidden");
+
  if(isAdmin){
   adminSection.classList.remove("hidden");
   loadAdmin();
  } else {
   agentSection.classList.remove("hidden");
   startTimer();
+  loadAgentLogs();
  }
 }
 
 /* TIMER */
 function startTimer(){
- document.addEventListener("input",()=>{
-  if(!startTime) startTime=Date.now();
- },{once:true});
+ document.addEventListener("input",()=>{ if(!startTime) startTime=Date.now(); },{once:true});
 }
 
-/* SUBMIT LOG */
+/* SUBMIT */
 async function submitLog(){
  const mins=((Date.now()-startTime)/60000).toFixed(2);
  await db.collection("logs").add({
@@ -179,13 +290,56 @@ async function submitLog(){
  location.reload();
 }
 
-/* ADMIN LOAD */
+/* AGENT SEARCH */
+function loadAgentLogs(){
+ db.collection("logs").orderBy("created","desc").onSnapshot(s=>{
+  logs=s.docs.map(d=>({id:d.id,...d.data()}));
+  renderAgentLogs();
+ });
+}
+
+function renderAgentLogs(){
+ agentLogs.innerHTML="";
+ logs.filter(l=>{
+  return (!searchText.value || JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase())) &&
+         (!searchAgent.value || l.agent.includes(searchAgent.value)) &&
+         (!searchCompany.value || l.company.includes(searchCompany.value)) &&
+         (!searchDisposition.value || l.disposition===searchDisposition.value);
+ }).forEach(l=>{
+  agentLogs.innerHTML+=`
+   <tr>
+    <td>${l.agent}</td>
+    <td>${l.company}</td>
+    <td>${l.disposition}</td>
+    <td>${l.status}</td>
+    <td class="note-box">${l.notes}</td>
+    <td>${l.date}</td>
+   </tr>`;
+ });
+}
+
+/* ADMIN */
 function loadAdmin(){
  db.collection("logs").onSnapshot(s=>{
   logs=s.docs.map(d=>({id:d.id,...d.data()}));
-  renderCharts();
-  renderTimes();
-  renderAdminLogs();
+  renderAdmin();
+ });
+}
+
+function renderAdmin(){
+ renderCharts();
+ renderTimes();
+ adminLogs.innerHTML="";
+ logs.forEach(l=>{
+  adminLogs.innerHTML+=`
+  <tr>
+   <td>${l.agent}</td>
+   <td>${l.company}</td>
+   <td>${l.disposition}</td>
+   <td>${l.minutes}</td>
+   <td>${l.date}</td>
+   <td><button onclick="del('${l.id}')">Delete</button></td>
+  </tr>`;
  });
 }
 
@@ -209,7 +363,7 @@ function chart(id,label,data){
  });
 }
 
-/* TIME TABLE */
+/* TIME */
 function renderTimes(){
  const map={};
  logs.forEach(l=>{
@@ -223,22 +377,7 @@ function renderTimes(){
  });
 }
 
-/* ADMIN LOGS */
-function renderAdminLogs(){
- adminLogs.innerHTML="";
- logs.forEach(l=>{
-  adminLogs.innerHTML+=`
-  <tr>
-   <td>${l.agent}</td>
-   <td>${l.company}</td>
-   <td>${l.disposition}</td>
-   <td>${l.minutes}</td>
-   <td>${l.date}</td>
-   <td><button onclick="del('${l.id}')">Delete</button></td>
-  </tr>`;
- });
-}
-
+/* DELETE */
 async function del(id){
  if(confirm("Delete log?")) await db.collection("logs").doc(id).delete();
 }
