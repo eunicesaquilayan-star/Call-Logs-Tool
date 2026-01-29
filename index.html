@@ -105,9 +105,10 @@ th,td{
 <div class="container">
 
 <header>
- <img src="./images/SL-Logo4.png" alt="SL Logo4" height="40">
+ <img src="./images/SL-Logo4.png" alt="SL Logo4" height="95">
  <div>
   <button onclick="toggleTheme()">🌙 / ☀️</button>
+  <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
  </div>
 </header>
 
@@ -146,7 +147,7 @@ th,td{
 
 <input id="name" placeholder="Customer Name">
 <input id="phone" placeholder="Phone">
-<input id="ref" placeholder="Reference #">
+<input id="ref" placeholder="User ID / Order # / Inv #">
 
 <select id="disposition">
  <option value="">Disposition *</option>
@@ -170,9 +171,9 @@ ACTION TAKEN:</textarea>
 
 <h3>🔍 Search All Logs</h3>
 <div class="filters">
- <input id="searchText" placeholder="Search keyword">
- <input id="searchAgent" placeholder="Agent email">
+ <input id="searchText" placeholder="Keyword">
  <input id="searchCompany" placeholder="Company">
+ <input id="searchDate" type="date">
  <select id="searchDisposition">
   <option value="">All Dispositions</option>
   <option>Password Reset</option>
@@ -198,6 +199,12 @@ ACTION TAKEN:</textarea>
 
 <h3>📊 Admin Analytics</h3>
 
+<div class="filters">
+ <input id="adminCompany" placeholder="Company">
+ <input id="adminDate" type="date">
+ <input id="adminSearch" placeholder="Keyword">
+</div>
+
 <div class="stats-grid">
  <canvas id="logsPerDay"></canvas>
  <canvas id="topDisposition"></canvas>
@@ -215,7 +222,11 @@ ACTION TAKEN:</textarea>
 <h4>🗑 Logs</h4>
 <table>
 <thead>
-<tr><th>Agent</th><th>Company</th><th>Disposition</th><th>Minutes</th><th>Date</th><th>Action</th></tr>
+<tr>
+<th>Agent</th><th>Company</th><th>Disposition</th>
+<th>User ID / Order # / Inv #</th>
+<th>Minutes</th><th>Date</th><th>Action</th>
+</tr>
 </thead>
 <tbody id="adminLogs"></tbody>
 </table>
@@ -234,7 +245,7 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 /* GLOBALS */
-let user="",isAdmin=false,startTime=0,logs=[];
+let user="",isAdmin=false,startTime=0,logs=[],charts=[];
 
 /* ENTER KEY LOGIN */
 document.addEventListener("keydown",e=>{
@@ -243,6 +254,9 @@ document.addEventListener("keydown",e=>{
 
 /* THEME */
 function toggleTheme(){document.body.classList.toggle("dark")}
+
+/* LOGOUT */
+function logout(){location.reload()}
 
 /* LOGIN */
 function login(){
@@ -255,6 +269,7 @@ function login(){
  }
 
  loginSection.classList.add("hidden");
+ logoutBtn.classList.remove("hidden");
  agentBadge.textContent="User: "+user;
  agentBadge.classList.remove("hidden");
 
@@ -281,6 +296,7 @@ async function submitLog(){
   company:company.value,
   disposition:disposition.value,
   status:status.value,
+  ref:ref.value,
   notes:notes.value,
   minutes:+mins,
   date:new Date().toISOString().split("T")[0],
@@ -302,8 +318,8 @@ function renderAgentLogs(){
  agentLogs.innerHTML="";
  logs.filter(l=>{
   return (!searchText.value || JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase())) &&
-         (!searchAgent.value || l.agent.includes(searchAgent.value)) &&
          (!searchCompany.value || l.company.includes(searchCompany.value)) &&
+         (!searchDate.value || l.date===searchDate.value) &&
          (!searchDisposition.value || l.disposition===searchDisposition.value);
  }).forEach(l=>{
   agentLogs.innerHTML+=`
@@ -330,12 +346,17 @@ function renderAdmin(){
  renderCharts();
  renderTimes();
  adminLogs.innerHTML="";
- logs.forEach(l=>{
+ logs.filter(l=>{
+  return (!adminCompany.value || l.company.includes(adminCompany.value)) &&
+         (!adminDate.value || l.date===adminDate.value) &&
+         (!adminSearch.value || JSON.stringify(l).toLowerCase().includes(adminSearch.value.toLowerCase()));
+ }).forEach(l=>{
   adminLogs.innerHTML+=`
   <tr>
    <td>${l.agent}</td>
    <td>${l.company}</td>
    <td>${l.disposition}</td>
+   <td>${l.ref||""}</td>
    <td>${l.minutes}</td>
    <td>${l.date}</td>
    <td><button onclick="del('${l.id}')">Delete</button></td>
@@ -345,19 +366,20 @@ function renderAdmin(){
 
 /* CHARTS */
 function renderCharts(){
+ charts.forEach(c=>c.destroy()); charts=[];
  const perDay={},disp={},comp={};
  logs.forEach(l=>{
   perDay[l.date]=(perDay[l.date]||0)+1;
   disp[l.disposition]=(disp[l.disposition]||0)+1;
   comp[l.company]=(comp[l.company]||0)+1;
  });
- chart("logsPerDay","Logs Per Day",perDay);
- chart("topDisposition","Top Disposition",disp);
- chart("topCompany","Top Company",comp);
+ charts.push(drawChart("logsPerDay","Logs Per Day",perDay));
+ charts.push(drawChart("topDisposition","Top Disposition",disp));
+ charts.push(drawChart("topCompany","Top Company",comp));
 }
 
-function chart(id,label,data){
- new Chart(document.getElementById(id),{
+function drawChart(id,label,data){
+ return new Chart(document.getElementById(id),{
   type:"bar",
   data:{labels:Object.keys(data),datasets:[{label,data:Object.values(data)}]}
  });
@@ -384,8 +406,8 @@ async function del(id){
 
 /* EXPORT */
 function exportCSV(){
- let csv="Agent,Company,Disposition,Minutes,Date\n";
- logs.forEach(l=>csv+=`${l.agent},${l.company},${l.disposition},${l.minutes},${l.date}\n`);
+ let csv="Agent,Company,Disposition,User ID / Order # / Inv #,Minutes,Date\n";
+ logs.forEach(l=>csv+=`${l.agent},${l.company},${l.disposition},${l.ref||""},${l.minutes},${l.date}\n`);
  const a=document.createElement("a");
  a.href=URL.createObjectURL(new Blob([csv]));
  a.download="logs.csv";
