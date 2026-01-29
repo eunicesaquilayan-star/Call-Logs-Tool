@@ -13,88 +13,25 @@
 
 <style>
 :root{
- --bg:#f4f6f9;
- --card:#ffffff;
- --text:#212529;
- --border:#dee2e6;
- --primary:#0d6efd;
+ --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
 }
 body.dark{
- --bg:#121212;
- --card:#1e1e1e;
- --text:#e9ecef;
- --border:#2a2a2a;
+ --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a
 }
-body{
- font-family:Arial;
- background:var(--bg);
- color:var(--text);
- margin:0;
-}
-.container{
- max-width:1600px;
- margin:30px auto;
- background:var(--card);
- padding:30px;
- border-radius:12px;
-}
-header{
- display:flex;
- justify-content:space-between;
- align-items:center;
- border-bottom:2px solid var(--border);
- padding-bottom:15px;
-}
+body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
+.container{max-width:1600px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
+header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
+button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
+input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
+textarea{min-height:220px}
 .hidden{display:none}
-button{
- background:var(--primary);
- color:#fff;
- border:none;
- padding:8px 14px;
- border-radius:6px;
- cursor:pointer;
-}
-input,select,textarea{
- width:100%;
- padding:10px;
- margin-bottom:12px;
- border-radius:6px;
- border:1px solid var(--border);
-}
-table{
- width:100%;
- border-collapse:collapse;
- margin-top:20px;
-}
-th,td{
- border:1px solid var(--border);
- padding:10px;
-}
+table{width:100%;border-collapse:collapse;margin-top:20px}
+th,td{border:1px solid var(--border);padding:10px}
 .note-box{white-space:pre-wrap}
-.agent-badge{
- position:fixed;
- top:15px;
- right:20px;
- background:var(--primary);
- color:#fff;
- padding:8px 14px;
- border-radius:20px;
-}
-.filters{
- display:grid;
- grid-template-columns:repeat(4,1fr);
- gap:12px;
-}
-.admin-panel{
- border:2px dashed var(--primary);
- padding:20px;
- margin-top:30px;
-}
-.stats-grid{
- display:grid;
- grid-template-columns:1fr 1fr 1fr;
- gap:20px;
-}
+.agent-badge{position:fixed;top:15px;right:20px;background:var(--primary);color:white;padding:8px 14px;border-radius:20px}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.admin-panel{border:2px dashed var(--primary);padding:20px;margin-top:30px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
 </style>
 </head>
 
@@ -125,24 +62,15 @@ th,td{
 
 <h3>New Call Log</h3>
 
-<select id="tool">
- <option value="">Tool *</option>
+<select id="tool" onchange="loadCompanies()">
+ <option value="">Select Tool *</option>
  <option>Shopify</option>
  <option>Marcom</option>
  <option>Marketing Bench</option>
 </select>
 
-<select id="company">
- <option value="">Company *</option>
- <option>Bayada Wear</option>
- <option>First Watch Shop</option>
- <option>First Watch Swag</option>
- <option>Cash America</option>
- <option>Choice Hotels</option>
- <option>Dave & Buster's / Main Event</option>
- <option>23 Restaurant Services</option>
- <option>Aaron's, Inc.</option>
- <option>Access Marketing Services</option>
+<select id="company" disabled>
+ <option value="">Select Company *</option>
 </select>
 
 <input id="name" placeholder="Customer Name">
@@ -199,12 +127,6 @@ ACTION TAKEN:</textarea>
 
 <h3>📊 Admin Analytics</h3>
 
-<div class="filters">
- <input id="adminCompany" placeholder="Company">
- <input id="adminDate" type="date">
- <input id="adminSearch" placeholder="Keyword">
-</div>
-
 <div class="stats-grid">
  <canvas id="logsPerDay"></canvas>
  <canvas id="topDisposition"></canvas>
@@ -242,7 +164,14 @@ firebase.initializeApp({
  authDomain:"call-logs-tool.firebaseapp.com",
  projectId:"call-logs-tool"
 });
-const db = firebase.firestore();
+const db=firebase.firestore();
+
+/* TOOL → COMPANY MAP */
+const companyMap={
+ Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
+ Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
+ "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
+};
 
 /* GLOBALS */
 let user="",isAdmin=false,startTime=0,logs=[],charts=[];
@@ -268,6 +197,8 @@ function login(){
   isAdmin=true;
  }
 
+ startTime=Date.now(); // ✅ FIX: start timer immediately
+
  loginSection.classList.add("hidden");
  logoutBtn.classList.remove("hidden");
  agentBadge.textContent="User: "+user;
@@ -278,35 +209,44 @@ function login(){
   loadAdmin();
  } else {
   agentSection.classList.remove("hidden");
-  startTimer();
   loadAgentLogs();
  }
 }
 
-/* TIMER */
-function startTimer(){
- document.addEventListener("input",()=>{ if(!startTime) startTime=Date.now(); },{once:true});
+/* TOOL → COMPANY */
+function loadCompanies(){
+ company.disabled=false;
+ company.innerHTML='<option value="">Select Company *</option>';
+ companyMap[tool.value]?.forEach(c=>{
+  company.innerHTML+=`<option>${c}</option>`;
+ });
 }
 
 /* SUBMIT */
 async function submitLog(){
+ if(!tool.value||!company.value||!disposition.value)
+  return alert("Please complete required fields");
+
  const mins=((Date.now()-startTime)/60000).toFixed(2);
+
  await db.collection("logs").add({
   agent:user,
+  tool:tool.value,
   company:company.value,
+  ref:ref.value,
   disposition:disposition.value,
   status:status.value,
-  ref:ref.value,
   notes:notes.value,
   minutes:+mins,
   date:new Date().toISOString().split("T")[0],
   created:firebase.firestore.FieldValue.serverTimestamp()
  });
+
  alert("Log saved");
  location.reload();
 }
 
-/* AGENT SEARCH */
+/* AGENT VIEW */
 function loadAgentLogs(){
  db.collection("logs").orderBy("created","desc").onSnapshot(s=>{
   logs=s.docs.map(d=>({id:d.id,...d.data()}));
@@ -317,20 +257,20 @@ function loadAgentLogs(){
 function renderAgentLogs(){
  agentLogs.innerHTML="";
  logs.filter(l=>{
-  return (!searchText.value || JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase())) &&
-         (!searchCompany.value || l.company.includes(searchCompany.value)) &&
-         (!searchDate.value || l.date===searchDate.value) &&
-         (!searchDisposition.value || l.disposition===searchDisposition.value);
+  return (!searchText.value||JSON.stringify(l).toLowerCase().includes(searchText.value.toLowerCase()))
+  &&(!searchCompany.value||l.company.includes(searchCompany.value))
+  &&(!searchDate.value||l.date===searchDate.value)
+  &&(!searchDisposition.value||l.disposition===searchDisposition.value);
  }).forEach(l=>{
   agentLogs.innerHTML+=`
-   <tr>
-    <td>${l.agent}</td>
-    <td>${l.company}</td>
-    <td>${l.disposition}</td>
-    <td>${l.status}</td>
-    <td class="note-box">${l.notes}</td>
-    <td>${l.date}</td>
-   </tr>`;
+  <tr>
+   <td>${l.agent}</td>
+   <td>${l.company}</td>
+   <td>${l.disposition}</td>
+   <td>${l.status}</td>
+   <td class="note-box">${l.notes}</td>
+   <td>${l.date}</td>
+  </tr>`;
  });
 }
 
@@ -346,11 +286,7 @@ function renderAdmin(){
  renderCharts();
  renderTimes();
  adminLogs.innerHTML="";
- logs.filter(l=>{
-  return (!adminCompany.value || l.company.includes(adminCompany.value)) &&
-         (!adminDate.value || l.date===adminDate.value) &&
-         (!adminSearch.value || JSON.stringify(l).toLowerCase().includes(adminSearch.value.toLowerCase()));
- }).forEach(l=>{
+ logs.forEach(l=>{
   adminLogs.innerHTML+=`
   <tr>
    <td>${l.agent}</td>
@@ -373,16 +309,9 @@ function renderCharts(){
   disp[l.disposition]=(disp[l.disposition]||0)+1;
   comp[l.company]=(comp[l.company]||0)+1;
  });
- charts.push(drawChart("logsPerDay","Logs Per Day",perDay));
- charts.push(drawChart("topDisposition","Top Disposition",disp));
- charts.push(drawChart("topCompany","Top Company",comp));
-}
-
-function drawChart(id,label,data){
- return new Chart(document.getElementById(id),{
-  type:"bar",
-  data:{labels:Object.keys(data),datasets:[{label,data:Object.values(data)}]}
- });
+ charts.push(new Chart(logsPerDay,{type:"bar",data:{labels:Object.keys(perDay),datasets:[{label:"Logs Per Day",data:Object.values(perDay)}]}}));
+ charts.push(new Chart(topDisposition,{type:"bar",data:{labels:Object.keys(disp),datasets:[{label:"Top Disposition",data:Object.values(disp)}]}}));
+ charts.push(new Chart(topCompany,{type:"bar",data:{labels:Object.keys(comp),datasets:[{label:"Top Company",data:Object.values(comp)}]}}));
 }
 
 /* TIME */
@@ -406,8 +335,8 @@ async function del(id){
 
 /* EXPORT */
 function exportCSV(){
- let csv="Agent,Company,Disposition,User ID / Order # / Inv #,Minutes,Date\n";
- logs.forEach(l=>csv+=`${l.agent},${l.company},${l.disposition},${l.ref||""},${l.minutes},${l.date}\n`);
+ let csv="Agent,Tool,Company,Disposition,User ID / Order # / Inv #,Minutes,Date\n";
+ logs.forEach(l=>csv+=`${l.agent},${l.tool},${l.company},${l.disposition},${l.ref||""},${l.minutes},${l.date}\n`);
  const a=document.createElement("a");
  a.href=URL.createObjectURL(new Blob([csv]));
  a.download="logs.csv";
