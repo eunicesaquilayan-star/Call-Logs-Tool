@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
+
 <style>
 :root{
  --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
@@ -102,20 +103,8 @@ ACTION TAKEN:</textarea>
 
 <script>
 /* FIREBASE */
+<script>
 /* 🔥 FIREBASE INIT */
- /* DOM ELEMENTS */
-const loginSection = document.getElementById("loginSection");
-const agentSection = document.getElementById("agentSection");
-const logoutBtn = document.getElementById("logoutBtn");
-
-const tool = document.getElementById("tool");
-const company = document.getElementById("company");
-const disposition = document.getElementById("disposition");
-const status = document.getElementById("status");
-const refInput = document.getElementById("ref");
-const notes = document.getElementById("notes");
-const agentLogs = document.getElementById("agentLogs");
-
 firebase.initializeApp({
   apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain: "call-logs-tool.firebaseapp.com",
@@ -125,11 +114,29 @@ firebase.initializeApp({
 const db = firebase.firestore();
 const auth = firebase.auth();
 
+let authReady = false;
+
+/* 🔐 SIGN IN (REQUIRED FOR FIRESTORE RULES) */
+auth.signInAnonymously()
+  .then(() => {
+    console.log("✅ Anonymous auth started");
+  })
+  .catch(err => {
+    console.error("❌ Auth error:", err);
+  });
+
+/* 🔐 AUTH STATE LISTENER */
+auth.onAuthStateChanged(u => {
+  if (u) {
+    authReady = true;
+    console.log("🔐 Auth ready:", u.uid);
+  }
+
 
 /* 🔐 REQUIRED FOR GITHUB PAGES */
 auth.signInAnonymously()
- .then(()=>console.log("✅ Anonymous Auth Ready"))
- .catch(err=>console.error("❌ Auth Error", err));
+  .then(() => console.log("✅ Anonymous Auth Ready"))
+  .catch(err => console.error("❌ Auth Error", err));
 
 /* STATE */
 let user = sessionStorage.getItem("user") || "";
@@ -192,6 +199,11 @@ function loadCompanies(){
 /* SUBMIT LOG */
 async function submitLog(){
 
+  if (!authReady) {
+    alert("Auth still initializing. Please wait 1–2 seconds and try again.");
+    return;
+  }
+
   if(!tool.value || !company.value || !disposition.value){
     alert("Please complete required fields");
     return;
@@ -201,16 +213,16 @@ async function submitLog(){
     const minutes = ((Date.now() - startTime) / 60000).toFixed(2);
 
     await db.collection("logs").add({
-  agent: user,
-  tool: tool.value,
-  company: company.value,
-  disposition: disposition.value,
-  status: status.value,
-  ref: refInput.value || "",
-  notes: notes.value || "",
-  minutes: Number(minutes),
-  created: firebase.firestore.FieldValue.serverTimestamp()
-});
+      agent: user,
+      tool: tool.value,
+      company: company.value,
+      disposition: disposition.value,
+      status: status.value,
+      ref: refInput.value || "",
+      notes: notes.value || "",
+      minutes: Number(minutes),
+      created: firebase.firestore.FieldValue.serverTimestamp()
+    });
 
     alert("✅ Log saved successfully");
     startTime = Date.now();
@@ -221,6 +233,7 @@ async function submitLog(){
     alert("❌ Failed to save log. Check console.");
   }
 }
+
 
 /* ENTER TO SUBMIT */
 document.addEventListener("keydown", e => {
@@ -272,6 +285,7 @@ function loadAgentLogs(){
 
 </body>
 </html>
+
 
 
 
