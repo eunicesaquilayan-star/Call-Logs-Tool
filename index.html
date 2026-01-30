@@ -106,14 +106,16 @@ firebase.initializeApp({
  authDomain:"call-logs-tool.firebaseapp.com",
  projectId:"call-logs-tool"
 });
-const db=firebase.firestore();
+const db = firebase.firestore();
 
 /* STATE */
 let user = sessionStorage.getItem("user") || "";
 let startTime = Date.now();
 
 /* THEME */
-function toggleTheme(){document.body.classList.toggle("dark")}
+function toggleTheme(){
+ document.body.classList.toggle("dark");
+}
 
 /* LOGIN */
 function login(){
@@ -146,7 +148,7 @@ if(user){
 }
 
 /* TOOL → COMPANY */
-const companyMap={
+const companyMap = {
  Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
  Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
  "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
@@ -155,9 +157,10 @@ const companyMap={
 function loadCompanies(){
  company.innerHTML='<option value="">Select Company *</option>';
  company.disabled=true;
- (companyMap[tool.value]||[]).forEach(c=>{
+ (companyMap[tool.value] || []).forEach(c=>{
   const o=document.createElement("option");
-  o.value=c;o.textContent=c;
+  o.value=c;
+  o.textContent=c;
   company.appendChild(o);
  });
  company.disabled=false;
@@ -166,28 +169,44 @@ function loadCompanies(){
 /* SUBMIT LOG */
 async function submitLog(){
  if(!tool.value || !company.value || !disposition.value){
-  alert("Please complete required fields"); return;
+  alert("Please complete required fields");
+  return;
  }
 
- const minutes=((Date.now()-startTime)/60000).toFixed(2);
+ const minutes = ((Date.now()-startTime)/60000).toFixed(2);
 
- await db.collection("logs").add({
-  agent:user,
-  tool:tool.value,
-  company:company.value,
-  disposition:disposition.value,
-  status:status.value,
-  ref:ref.value || "",
-  notes:notes.value || "",
-  minutes:Number(minutes),
-  date:new Date().toISOString().split("T")[0],
-  created:firebase.firestore.FieldValue.serverTimestamp()
- });
+ try{
+  await db.collection("logs").add({
+   agent:user,
+   tool:tool.value,
+   company:company.value,
+   disposition:disposition.value,
+   status:status.value,
+   ref:ref.value || "",
+   notes:notes.value || "",
+   minutes:Number(minutes),
+   date:new Date().toISOString().split("T")[0],
+   created: firebase.firestore.FieldValue.serverTimestamp()
+  });
 
- alert("✅ Log saved successfully");
- startTime = Date.now();
- ref.value="";
+  alert("✅ Log saved successfully");
+  startTime = Date.now();
+  ref.value="";
+ }catch(err){
+  console.error("Firestore error:", err);
+  alert("❌ Failed to save log. Check console.");
+ }
 }
+
+/* ENTER TO SUBMIT */
+document.addEventListener("keydown", e=>{
+ if(e.key === "Enter" && !loginSection.classList.contains("hidden")){
+  login();
+ }
+ if(e.key === "Enter" && !agentSection.classList.contains("hidden")){
+  submitLog();
+ }
+});
 
 /* LOAD AGENT LOGS */
 function loadAgentLogs(){
@@ -197,8 +216,8 @@ function loadAgentLogs(){
  .onSnapshot(snap=>{
   agentLogs.innerHTML="";
   snap.forEach(doc=>{
-   const d=doc.data();
-   agentLogs.innerHTML+=`
+   const d = doc.data();
+   agentLogs.innerHTML += `
     <tr>
      <td>${d.agent}</td>
      <td>${d.company}</td>
@@ -208,9 +227,13 @@ function loadAgentLogs(){
      <td>${d.date}</td>
     </tr>`;
   });
+ }, err=>{
+  console.error("Snapshot error:", err);
  });
 }
 </script>
 
+
 </body>
 </html>
+
