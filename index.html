@@ -124,14 +124,6 @@ firebase.initializeApp({
 
 const db = firebase.firestore();
 const auth = firebase.auth();
- let authReady = false;
-
-auth.onAuthStateChanged(user => {
-  if (user) {
-    authReady = true;
-    console.log("🔐 Authenticated as:", user.uid);
-  }
-});
 
 
 /* 🔐 REQUIRED FOR GITHUB PAGES */
@@ -150,23 +142,18 @@ function toggleTheme(){
 
 /* LOGIN */
 function login(){
-if (!authReady) {
-  alert("Auth still initializing. Please wait a moment.");
-  return;
-}
+  const u = document.getElementById("email").value.trim();
+  if(!u) return alert("Email required");
 
- const u = document.getElementById("email").value.trim();
- if(!u) return alert("Email required");
+  user = u;
+  sessionStorage.setItem("user", user);
+  startTime = Date.now();
 
- user = u;
- sessionStorage.setItem("user", user);
- startTime = Date.now();
+  loginSection.classList.add("hidden");
+  agentSection.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
 
- loginSection.classList.add("hidden");
- agentSection.classList.remove("hidden");
- logoutBtn.classList.remove("hidden");
-
- loadAgentLogs();
+  loadAgentLogs();
 }
 
 /* LOGOUT */
@@ -204,11 +191,6 @@ function loadCompanies(){
 
 /* SUBMIT LOG */
 async function submitLog(){
-
-  if (!authReady) {
-    alert("Auth not ready yet. Please wait 1–2 seconds and try again.");
-    return;
-  }
 
   if(!tool.value || !company.value || !disposition.value){
     alert("Please complete required fields");
@@ -287,6 +269,7 @@ function loadAgentLogs(){
 
 </body>
 </html>
+
 
 
 
