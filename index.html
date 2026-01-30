@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <title>Call Logs Tool</title>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
 
 <style>
 :root{
@@ -20,13 +22,11 @@ body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
 header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
 button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
 input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
-textarea{min-height:180px}
+textarea{min-height:220px}
 .hidden{display:none}
 table{width:100%;border-collapse:collapse;margin-top:20px}
 th,td{border:1px solid var(--border);padding:10px}
-.small{font-size:13px;opacity:.85}
-.analytics{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-top:20px}
-.card{padding:15px;border:1px solid var(--border);border-radius:10px}
+.note-box{white-space:pre-wrap}
 </style>
 </head>
 
@@ -46,22 +46,8 @@ th,td{border:1px solid var(--border);padding:10px}
 <div id="loginSection">
  <h3>Login</h3>
  <input id="email" placeholder="Email">
- <input id="password" type="password" placeholder="Admin password (admins only)">
+ <input id="password" type="password" placeholder="Admin Password (admins only)">
  <button onclick="login()">Login</button>
-</div>
-
-<!-- ADMIN -->
-<div id="adminSection" class="hidden">
- <h3>📊 Admin Analytics</h3>
-
- <button onclick="exportCSV()">⬇ Export CSV</button>
-
- <div class="analytics">
-  <div class="card"><b>Logs Today</b><div id="logsToday">0</div></div>
-  <div class="card"><b>Top Company</b><div id="topCompany">-</div></div>
-  <div class="card"><b>Top Disposition</b><div id="topDisposition">-</div></div>
-  <div class="card"><b>Resolved %</b><div id="resolvedPct">0%</div></div>
- </div>
 </div>
 
 <!-- AGENT -->
@@ -71,9 +57,9 @@ th,td{border:1px solid var(--border);padding:10px}
 
 <select id="tool" onchange="loadCompanies()">
  <option value="">Select Tool *</option>
- <option>Shopify</option>
- <option>Marcom</option>
- <option>Marketing Bench</option>
+ <option value="Shopify">Shopify</option>
+ <option value="Marcom">Marcom</option>
+ <option value="Marketing Bench">Marketing Bench</option>
 </select>
 
 <select id="company" disabled>
@@ -93,9 +79,9 @@ th,td{border:1px solid var(--border);padding:10px}
 </select>
 
 <select id="status">
- <option>Open</option>
- <option>Follow Up</option>
- <option>Resolved</option>
+ <option value="Open">Open</option>
+ <option value="Follow Up">Follow Up</option>
+ <option value="Resolved">Resolved</option>
 </select>
 
 <textarea id="notes">CONCERN:
@@ -104,18 +90,10 @@ ACTION TAKEN:</textarea>
 
 <button onclick="submitLog()">Submit Log</button>
 
-<h3>History</h3>
-
-<select id="filterCompany" onchange="loadAgentLogs()">
- <option value="">All Companies</option>
-</select>
-
-<input type="date" id="filterDate" onchange="loadAgentLogs()">
-
 <table>
 <thead>
 <tr>
-<th>Customer</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
+<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
 </tr>
 </thead>
 <tbody id="agentLogs"></tbody>
@@ -124,42 +102,90 @@ ACTION TAKEN:</textarea>
 </div>
 
 <script>
+/* 🔥 FIREBASE INIT */
 firebase.initializeApp({
- apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
- authDomain:"call-logs-tool.firebaseapp.com",
- projectId:"call-logs-tool"
+  apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
+  authDomain: "call-logs-tool.firebaseapp.com",
+  projectId: "call-logs-tool"
 });
 
-const db=firebase.firestore();
-const auth=firebase.auth();
+const db = firebase.firestore();
+const auth = firebase.auth();
+ 
+/* 🔗 DOM ELEMENTS */
+const loginSection = document.getElementById("loginSection");
+const agentSection = document.getElementById("agentSection");
+const logoutBtn = document.getElementById("logoutBtn");
 
-let user="", isAdmin=false, startTime=Date.now();
+const tool = document.getElementById("tool");
+const company = document.getElementById("company");
+const disposition = document.getElementById("disposition");
+const status = document.getElementById("status");
+const refInput = document.getElementById("ref");
+const notes = document.getElementById("notes");
+const agentLogs = document.getElementById("agentLogs");
 
-auth.signInAnonymously();
+/* STATE */
+let user = sessionStorage.getItem("user") || "";
+let startTime = Date.now();
 
-function toggleTheme(){document.body.classList.toggle("dark")}
 
-function login(){
- user=email.value.trim();
- if(!user) return alert("Email required");
+let authReady = false;
 
- isAdmin=password.value==="SL@123";
+/* 🔐 SIGN IN (REQUIRED FOR FIRESTORE RULES) */
+auth.signInAnonymously()
+  .then(() => {
+    console.log("✅ Anonymous auth started");
+  })
+  .catch(err => {
+    console.error("❌ Auth error:", err);
+  });
 
- loginSection.classList.add("hidden");
- logoutBtn.classList.remove("hidden");
+/* 🔐 AUTH STATE LISTENER */
+auth.onAuthStateChanged(u => {
+  if (u) {
+    authReady = true;
+    console.log("🔐 Auth ready:", u.uid);
+  }
+});
 
- if(isAdmin){
-  adminSection.classList.remove("hidden");
-  loadAnalytics();
- }else{
-  agentSection.classList.remove("hidden");
-  loadAgentLogs();
- }
+ function toggleTheme(){
+  document.body.classList.toggle("dark");
 }
 
-function logout(){sessionStorage.clear();location.reload()}
+/* LOGIN */
+function login(){
+  const u = document.getElementById("email").value.trim();
+  if(!u) return alert("Email required");
 
-const companyMap={
+  user = u;
+  sessionStorage.setItem("user", user);
+  startTime = Date.now();
+
+  loginSection.classList.add("hidden");
+  agentSection.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
+
+  loadAgentLogs();
+}
+
+/* LOGOUT */
+function logout(){
+  sessionStorage.clear();
+  location.reload();
+}
+
+/* AUTO RESTORE SESSION */
+if(user){
+  loginSection.classList.add("hidden");
+  agentSection.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
+  loadAgentLogs();
+}
+
+
+/* TOOL → COMPANY */
+const companyMap = {
  Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
  Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
  "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
@@ -167,86 +193,107 @@ const companyMap={
 
 function loadCompanies(){
  company.innerHTML='<option value="">Select Company *</option>';
- filterCompany.innerHTML='<option value="">All Companies</option>';
- (companyMap[tool.value]||[]).forEach(c=>{
-  company.add(new Option(c,c));
-  filterCompany.add(new Option(c,c));
+ company.disabled=true;
+ (companyMap[tool.value] || []).forEach(c=>{
+  const o=document.createElement("option");
+  o.value=c;
+  o.textContent=c;
+  company.appendChild(o);
  });
  company.disabled=false;
 }
 
+/* SUBMIT LOG */
 async function submitLog(){
- if(!tool.value||!company.value||!disposition.value) return alert("Complete required fields");
 
- await db.collection("logs").add({
-  agent:user,tool:tool.value,company:company.value,
-  name:name.value,phone:phone.value,ref:ref.value,
-  disposition:disposition.value,status:status.value,
-  notes:notes.value,minutes:((Date.now()-startTime)/60000).toFixed(2),
-  created:firebase.firestore.FieldValue.serverTimestamp()
- });
+  if (!authReady) {
+    alert("Auth still initializing. Please wait 1–2 seconds and try again.");
+    return;
+  }
 
- tool.value="";company.innerHTML='<option value="">Select Company *</option>';company.disabled=true;
- name.value=phone.value=ref.value="";
- disposition.value="";status.value="Open";
- notes.value="CONCERN:\n\nACTION TAKEN:";
- startTime=Date.now();
- loadAgentLogs();
+  if(!tool.value || !company.value || !disposition.value){
+    alert("Please complete required fields");
+    return;
+  }
+
+  try {
+    const minutes = ((Date.now() - startTime) / 60000).toFixed(2);
+
+    await db.collection("logs").add({
+      agent: user,
+      tool: tool.value,
+      company: company.value,
+      disposition: disposition.value,
+      status: status.value,
+      ref: refInput.value || "",
+      notes: notes.value || "",
+      minutes: Number(minutes),
+      created: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    alert("✅ Log saved successfully");
+    startTime = Date.now();
+    refInput.value = "";
+
+  } catch (err) {
+    console.error("🔥 Firestore write failed:", err);
+    alert("❌ Failed to save log. Check console.");
+  }
 }
 
+/* ENTER TO SUBMIT */
+document.addEventListener("keydown", e => {
+
+  // ENTER = login
+  if (e.key === "Enter" && !loginSection.classList.contains("hidden")) {
+    login();
+  }
+
+  // CTRL + ENTER = submit log
+  if (e.key === "Enter" && e.ctrlKey && !agentSection.classList.contains("hidden")) {
+    submitLog();
+  }
+
+});
+
+/* LOAD AGENT LOGS */
 function loadAgentLogs(){
- let q=db.collection("logs").where("agent","==",user);
+  db.collection("logs")
+    .where("agent", "==", user)
+    .orderBy("created", "desc")
+    .onSnapshot(snap => {
 
- if(filterCompany.value) q=q.where("company","==",filterCompany.value);
+      agentLogs.innerHTML = "";
 
- q.orderBy("created","desc").limit(100).onSnapshot(snap=>{
-  agentLogs.innerHTML="";
-  snap.forEach(d=>{
-   const x=d.data();
-   const preview=x.notes?.slice(0,80)||"";
-   agentLogs.innerHTML+=`
-   <tr>
-    <td>${x.name||""}</td>
-    <td>${x.company}</td>
-    <td>${x.disposition}</td>
-    <td>${x.status}</td>
-    <td title="${x.notes||""}">${preview}${x.notes?.length>80?"…":""}</td>
-    <td>${x.created?.toDate().toLocaleString()||""}</td>
-   </tr>`;
-  });
- });
+      snap.forEach(doc => {
+        const d = doc.data();
+
+        agentLogs.innerHTML += `
+          <tr>
+            <td>${d.agent}</td>
+            <td>${d.company}</td>
+            <td>${d.disposition}</td>
+            <td>${d.status}</td>
+            <td class="note-box">${d.notes}</td>
+            <td>${d.created ? d.created.toDate().toLocaleString() : ""}</td>
+          </tr>
+        `;
+      });
+
+    }, err => {
+      console.error("🔥 Snapshot error:", err);
+     });
 }
 
-function loadAnalytics(){
- db.collection("logs").onSnapshot(snap=>{
-  let total=0,res=0,companies={},disp={};
-
-  snap.forEach(d=>{
-   const x=d.data();total++;
-   if(x.status==="Resolved")res++;
-   companies[x.company]=(companies[x.company]||0)+1;
-   disp[x.disposition]=(disp[x.disposition]||0)+1;
-  });
-
-  logsToday.textContent=total;
-  topCompany.textContent=Object.keys(companies).sort((a,b)=>companies[b]-companies[a])[0]||"-";
-  topDisposition.textContent=Object.keys(disp).sort((a,b)=>disp[b]-disp[a])[0]||"-";
-  resolvedPct.textContent=total?Math.round(res/total*100)+"% ("+res+")":"0%";
- });
-}
-
-function exportCSV(){
- db.collection("logs").get().then(snap=>{
-  let csv="Agent,Customer,Company,Disposition,Status,Date\n";
-  snap.forEach(d=>{
-   const x=d.data();
-   csv+=`${x.agent},${x.name},${x.company},${x.disposition},${x.status},${x.created?.toDate()}\n`;
-  });
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download="call-logs.csv";a.click();
- });
-}
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
