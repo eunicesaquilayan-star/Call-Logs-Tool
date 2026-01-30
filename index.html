@@ -258,31 +258,35 @@ document.addEventListener("keydown", e => {
 
 /* LOAD AGENT LOGS */
 function loadAgentLogs(){
- db.collection("logs")
- .where("agent","==",user)
- .orderBy("date")
- .onSnapshot(snap=>{
-  agentLogs.innerHTML="";
-  snap.forEach(doc=>{
-   const d = doc.data();
-   agentLogs.innerHTML += `
-    <tr>
-     <td>${d.agent}</td>
-     <td>${d.company}</td>
-     <td>${d.disposition}</td>
-     <td>${d.status}</td>
-     <td class="note-box">${d.notes}</td>
-     <td>${d.date}</td>
-    </tr>`;
-  });
- }, err=>{
-  console.error("Snapshot error:", err);
- });
+  db.collection("logs")
+    .where("agent", "==", user)
+    .orderBy("created", "desc")
+    .onSnapshot(
+      snap => {
+        agentLogs.innerHTML = "";
+        snap.forEach(doc => {
+          const d = doc.data();
+          agentLogs.innerHTML += `
+            <tr>
+              <td>${d.agent}</td>
+              <td>${d.company}</td>
+              <td>${d.disposition}</td>
+              <td>${d.status}</td>
+              <td class="note-box">${d.notes}</td>
+              <td>${d.date}</td>
+            </tr>`;
+        });
+      },
+      err => {
+        console.error("🔥 Snapshot error:", err);
+      }
+    );
 }
 </script>
 
 
 </body>
 </html>
+
 
 
