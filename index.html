@@ -2,190 +2,333 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Call Logs Tool</title>
+<title>Knowledge Base Tool</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase -->
+<!-- FONT -->
+<link href="https://fonts.googleapis.com/css2?family=Aptos:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<!-- Chart.js -->
+<!-- CHART -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-:root{
- --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
+body{
+  margin:0;
+  font-family:Aptos, sans-serif;
+  background:#f5f6fa;
+  color:#222;
 }
-body.dark{
- --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a
+.dark{
+  background:#111;
+  color:#eee;
 }
-body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
-.container{max-width:1600px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
-header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
-button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
-input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
-textarea{min-height:220px}
+
+header{
+  display:flex;
+  align-items:center;
+  padding:10px 16px;
+  background:#2f6fed;
+  color:#fff;
+}
+header img{height:36px;margin-right:12px}
 .hidden{display:none}
-table{width:100%;border-collapse:collapse;margin-top:20px}
-th,td{border:1px solid var(--border);padding:10px}
-.note-box{white-space:pre-wrap}
-.agent-badge{position:fixed;top:15px;right:20px;background:var(--primary);color:white;padding:8px 14px;border-radius:20px}
-.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.admin-panel{border:2px dashed var(--primary);padding:20px;margin-top:30px}
-.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+
+button{
+  padding:8px 12px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+}
+.primary{background:#2f6fed;color:#fff}
+.danger{background:#c0392b;color:#fff}
+
+input,select,textarea{
+  width:100%;
+  padding:8px;
+  margin:4px 0 12px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+th,td{
+  padding:8px;
+  border-bottom:1px solid #ddd;
+}
+
+.card{
+  background:#fff;
+  padding:16px;
+  border-radius:10px;
+  margin:12px;
+}
+.dark .card{background:#1e1e1e}
 </style>
 </head>
 
 <body>
 
-<div id="agentBadge" class="agent-badge hidden"></div>
-
-<div class="container">
-
 <header>
- <img src="./images/SL-Logo4.png" height="95">
- <div>
-  <button onclick="toggleTheme()">🌙 / ☀️</button>
-  <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
- </div>
+  <img src="logo.png">
+  <strong>Knowledge Base Tool</strong>
+  <div style="margin-left:auto">
+    <button onclick="toggleDark()">🌙</button>
+    <button id="logoutBtn" onclick="logout()" class="danger hidden">Logout</button>
+  </div>
 </header>
 
 <!-- LOGIN -->
-<div id="loginSection">
- <h3>Login</h3>
- <input id="email" placeholder="Email">
- <input id="password" type="password" placeholder="Admin Password (admins only)">
- <button onclick="login()">Login</button>
+<div id="login" class="card">
+  <h2>Login</h2>
+  <input id="username" placeholder="Enter name">
+  <input id="password" type="password" placeholder="Password">
+  <button class="primary" onclick="loginUser()">Login</button>
 </div>
 
 <!-- AGENT -->
-<div id="agentSection" class="hidden">
+<div id="agent" class="hidden">
+  <div class="card">
+    <h3>Submit Log</h3>
 
-<h3>New Call Log</h3>
+    <select id="tool">
+      <option value="">Select Tool *</option>
+      <option>Shopify</option>
+      <option>Marcom</option>
+      <option>Marketing Bench</option>
+    </select>
 
-<select id="tool" onchange="loadCompanies()">
- <option value="">Select Tool *</option>
- <option value="Shopify">Shopify</option>
- <option value="Marcom">Marcom</option>
- <option value="Marketing Bench">Marketing Bench</option>
-</select>
+    <select id="company" disabled>
+      <option value="">Select Company *</option>
+    </select>
 
-<select id="company" disabled>
- <option value="">Select Company *</option>
-</select>
+    <input id="ref" placeholder="Reference #">
 
-<input id="name" placeholder="Customer Name">
-<input id="phone" placeholder="Phone">
-<input id="ref" placeholder="User ID / Order # / Inv #">
+    <select id="disposition">
+      <option value="">Disposition *</option>
+      <option>Resolved</option>
+      <option>Pending</option>
+    </select>
 
-<select id="disposition">
- <option value="">Disposition *</option>
- <option>Password Reset</option>
- <option>Order Entry</option>
- <option>Order Status</option>
- <option>General Inquiry</option>
-</select>
-
-<select id="status">
- <option value="Open">Open</option>
- <option value="Follow Up">Follow Up</option>
- <option value="Resolved">Resolved</option>
-</select>
-
-<textarea id="notes">CONCERN:
+    <textarea id="notes">CONCERN:
 
 ACTION TAKEN:</textarea>
 
-<button onclick="submitLog()">Submit Log</button>
+    <button class="primary" onclick="submitLog()">Submit</button>
+  </div>
 
-<table>
-<thead>
-<tr>
-<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
-</tr>
-</thead>
-<tbody id="agentLogs"></tbody>
-</table>
+  <div class="card">
+    <h3>My Logs</h3>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Tool</th><th>Company</th><th>Minutes</th></tr>
+      </thead>
+      <tbody id="agentLogs"></tbody>
+    </table>
+  </div>
+</div>
 
+<!-- ADMIN -->
+<div id="admin" class="hidden">
+  <div class="card">
+    <h3>Admin Filters</h3>
+    <input type="date" id="from">
+    <input type="date" id="to">
+  </div>
+
+  <div class="card">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>All Logs</h3>
+    <table>
+      <thead>
+        <tr><th>Agent</th><th>Date</th><th>Tool</th><th>Minutes</th></tr>
+      </thead>
+      <tbody id="adminLogs"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-/* FIREBASE */
-firebase.initializeApp({
- apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
- authDomain:"call-logs-tool.firebaseapp.com",
- projectId:"call-logs-tool"
-});
+/* 🔥 FIREBASE */
+const firebaseConfig={
+  apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
+  authDomain:"call-logs-tool.firebaseapp.com",
+  projectId:"call-logs-tool"
+};
+firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 
-/* GLOBALS */
-let user="",startTime=0,logs=[];
+/* 🔒 SESSION */
+let user = sessionStorage.getItem("user") || "";
+let isAdmin = sessionStorage.getItem("admin") === "1";
+let startTime = Date.now();
+let logs = [];
 
-/* THEME */
-function toggleTheme(){document.body.classList.toggle("dark")}
-
-/* LOGIN */
-function login(){
- user=email.value.trim();
- if(!user) return alert("Email required");
- startTime=Date.now();
- loginSection.classList.add("hidden");
- agentSection.classList.remove("hidden");
+/* 🌙 DARK MODE */
+function toggleDark(){
+ document.body.classList.toggle("dark");
 }
 
-/* TOOL → COMPANY */
-const companyMap={
- Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
- Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
- "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
-};
+/* 🔑 LOGIN */
+function loginUser(){
+ const u = username.value.trim();
+ const p = password.value;
 
-function loadCompanies(){
- company.innerHTML='<option value="">Select Company *</option>';
- company.disabled=true;
- if(!companyMap[tool.value]) return;
- companyMap[tool.value].forEach(c=>{
-  const o=document.createElement("option");
-  o.value=c; o.textContent=c;
-  company.appendChild(o);
- });
- company.disabled=false;
+ if(!u || !p) return alert("Missing fields");
+
+ user = u;
+ isAdmin = p === "admin123";
+
+ sessionStorage.setItem("user", user);
+ sessionStorage.setItem("admin", isAdmin ? "1" : "0");
+
+ init();
 }
 
-/* 🔒 FIRESTORE SAFE CLEANER */
-function clean(obj){
- return Object.fromEntries(
-  Object.entries(obj).filter(([_,v])=>v !== undefined)
- );
+/* 🚪 LOGOUT */
+function logout(){
+ sessionStorage.clear();
+ location.reload();
 }
 
-/* ✅ SUBMIT LOG (FIXED) */
+/* 🚀 INIT */
+function init(){
+ login.classList.add("hidden");
+ logoutBtn.classList.remove("hidden");
+
+ if(isAdmin){
+  admin.classList.remove("hidden");
+  loadAdmin();
+ }else{
+  agent.classList.remove("hidden");
+  loadAgentLogs();
+ }
+}
+
+/* 📝 SUBMIT LOG */
 async function submitLog(){
  if(!tool.value || !company.value || !disposition.value){
-  alert("Please complete required fields");
+  alert("Complete required fields");
   return;
  }
 
- const minutes=((Date.now()-startTime)/60000).toFixed(2);
+ const mins=((Date.now()-startTime)/60000).toFixed(2);
 
- const data=clean({
+ await db.collection("logs").add({
   agent:user,
   tool:tool.value,
   company:company.value,
   ref:ref.value || "",
   disposition:disposition.value,
-  status:status.value || "Open",   // ✅ DEFAULT
-  notes:notes.value || "",
-  minutes:Number(minutes),
+  notes:notes.value,
+  minutes:Number(mins),
   date:new Date().toISOString().split("T")[0],
   created:firebase.firestore.FieldValue.serverTimestamp()
  });
 
- await db.collection("logs").add(data);
-
- alert("✅ Log saved successfully");
- location.reload();
+ startTime = Date.now();
+ ref.value="";
+ notes.value="CONCERN:\n\nACTION TAKEN:";
+ alert("Saved");
 }
-</script>
 
+/* ⌨️ ENTER TO SUBMIT (AGENT ONLY) */
+document.addEventListener("keydown",e=>{
+ if(
+  e.key==="Enter" &&
+  !e.shiftKey &&
+  !agent.classList.contains("hidden") &&
+  document.activeElement.tagName!=="TEXTAREA"
+ ){
+  submitLog();
+ }
+});
+
+/* 📋 AGENT LOGS */
+function loadAgentLogs(){
+ db.collection("logs")
+ .where("agent","==",user)
+ .orderBy("created","desc")
+ .onSnapshot(s=>{
+  agentLogs.innerHTML="";
+  s.forEach(d=>{
+   const r=d.data();
+   agentLogs.innerHTML+=`
+    <tr>
+      <td>${r.date}</td>
+      <td>${r.tool}</td>
+      <td>${r.company}</td>
+      <td>${r.minutes}</td>
+    </tr>`;
+  });
+ });
+}
+
+/* 📊 ADMIN */
+let chart;
+function loadAdmin(){
+ db.collection("logs").onSnapshot(s=>{
+  logs = s.docs.map(d=>d.data());
+  renderAdmin();
+ });
+}
+
+function renderAdmin(){
+ const f=from.value, t=to.value;
+ const filtered = logs.filter(l=>{
+  return (!f || l.date>=f) && (!t || l.date<=t);
+ });
+
+ adminLogs.innerHTML="";
+ const totals={};
+
+ filtered.forEach(l=>{
+  totals[l.agent]=(totals[l.agent]||0)+l.minutes;
+  adminLogs.innerHTML+=`
+   <tr>
+     <td>${l.agent}</td>
+     <td>${l.date}</td>
+     <td>${l.tool}</td>
+     <td>${l.minutes}</td>
+   </tr>`;
+ });
+
+ if(chart) chart.destroy();
+ chart=new Chart(chart,{
+  type:"bar",
+  data:{
+   labels:Object.keys(totals),
+   datasets:[{data:Object.values(totals)}]
+  }
+ });
+}
+
+from.onchange = to.onchange = renderAdmin;
+
+/* 🔁 AUTO INIT */
+if(user) init();
+
+/* 🔽 COMPANY MAP */
+const map={
+ Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
+ Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
+ "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
+};
+
+tool.onchange=()=>{
+ company.innerHTML='<option value="">Select Company *</option>';
+ (map[tool.value]||[]).forEach(c=>{
+  company.innerHTML+=`<option>${c}</option>`;
+ });
+ company.disabled=!tool.value;
+};
+</script>
 </body>
 </html>
