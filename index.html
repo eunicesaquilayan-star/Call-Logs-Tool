@@ -2,6 +2,218 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Call Logs Tool</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+ --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
+}
+body.dark{
+ --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a
+}
+body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
+.container{max-width:1600px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
+header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
+button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
+input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
+textarea{min-height:220px}
+.hidden{display:none}
+table{width:100%;border-collapse:collapse;margin-top:20px}
+th,td{border:1px solid var(--border);padding:10px}
+.note-box{white-space:pre-wrap}
+.agent-badge{position:fixed;top:15px;right:20px;background:var(--primary);color:white;padding:8px 14px;border-radius:20px}
+</style>
+</head>
+
+<body>
+
+<div id="agentBadge" class="agent-badge hidden"></div>
+
+<div class="container">
+
+<header>
+ <img src="./images/SL-Logo4.png" height="95">
+ <div>
+  <button onclick="toggleTheme()">🌙 / ☀️</button>
+ </div>
+</header>
+
+<!-- LOGIN -->
+<div id="loginSection">
+ <h3>Login</h3>
+ <input id="email" placeholder="Email">
+ <input id="password" type="password" placeholder="Admin Password (admins only)">
+ <button onclick="login()">Login</button>
+</div>
+
+<!-- AGENT -->
+<div id="agentSection" class="hidden">
+
+<h3>New Call Log</h3>
+
+<select id="tool" onchange="loadCompanies()">
+ <option value="">Select Tool *</option>
+ <option value="Shopify">Shopify</option>
+ <option value="Marcom">Marcom</option>
+ <option value="Marketing Bench">Marketing Bench</option>
+</select>
+
+<select id="company" disabled>
+ <option value="">Select Company *</option>
+</select>
+
+<input id="name" placeholder="Customer Name">
+<input id="phone" placeholder="Phone">
+<input id="ref" placeholder="User ID / Order # / Inv #">
+
+<select id="disposition">
+ <option value="">Disposition *</option>
+ <option>Password Reset</option>
+ <option>Order Entry</option>
+ <option>Order Status</option>
+ <option>General Inquiry</option>
+</select>
+
+<select id="status">
+ <option value="Open">Open</option>
+ <option value="Follow Up">Follow Up</option>
+ <option value="Resolved">Resolved</option>
+</select>
+
+<textarea id="notes">CONCERN:
+
+ACTION TAKEN:</textarea>
+
+<button onclick="submitLog()">Submit Log</button>
+
+<table>
+<thead>
+<tr>
+<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
+</tr>
+</thead>
+<tbody id="agentLogs"></tbody>
+</table>
+
+</div>
+
+<script>
+/* FIREBASE */
+firebase.initializeApp({
+ apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
+ authDomain:"call-logs-tool.firebaseapp.com",
+ projectId:"call-logs-tool"
+});
+const db=firebase.firestore();
+
+/* GLOBALS */
+let user="", startTime=0;
+
+/* THEME */
+function toggleTheme(){document.body.classList.toggle("dark")}
+
+/* LOGIN */
+function login(){
+ user=email.value.trim();
+ if(!user) return alert("Email required");
+
+ startTime=Date.now();
+ loginSection.classList.add("hidden");
+ agentSection.classList.remove("hidden");
+
+ loadAgentLogs(); // ✅ START LISTENING AFTER LOGIN
+}
+
+/* TOOL → COMPANY */
+const companyMap={
+ Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
+ Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
+ "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
+};
+
+function loadCompanies(){
+ company.innerHTML='<option value="">Select Company *</option>';
+ company.disabled=true;
+ if(!companyMap[tool.value]) return;
+ companyMap[tool.value].forEach(c=>{
+  const o=document.createElement("option");
+  o.value=c; o.textContent=c;
+  company.appendChild(o);
+ });
+ company.disabled=false;
+}
+
+/* 🔒 CLEAN */
+function clean(obj){
+ return Object.fromEntries(
+  Object.entries(obj).filter(([_,v])=>v !== undefined)
+ );
+}
+
+/* 📋 LOAD AGENT LOGS (FIX) */
+function loadAgentLogs(){
+ db.collection("logs")
+ .where("agent","==",user)
+ .orderBy("created","desc")
+ .onSnapshot(snap=>{
+  agentLogs.innerHTML="";
+  snap.forEach(doc=>{
+   const r=doc.data();
+   agentLogs.innerHTML+=`
+    <tr>
+     <td>${r.agent}</td>
+     <td>${r.company}</td>
+     <td>${r.disposition}</td>
+     <td>${r.status}</td>
+     <td class="note-box">${r.notes}</td>
+     <td>${r.date}</td>
+    </tr>`;
+  });
+ });
+}
+
+/* ✅ SUBMIT LOG (FIXED) */
+async function submitLog(){
+ if(!tool.value || !company.value || !disposition.value){
+  alert("Please complete required fields");
+  return;
+ }
+
+ const minutes=((Date.now()-startTime)/60000).toFixed(2);
+
+ const data=clean({
+  agent:user,
+  tool:tool.value,
+  company:company.value,
+  ref:ref.value || "",
+  disposition:disposition.value,
+  status:status.value || "Open",
+  notes:notes.value || "",
+  minutes:Number(minutes),
+  date:new Date().toISOString().split("T")[0],
+  created:firebase.firestore.FieldValue.serverTimestamp()
+ });
+
+ await db.collection("logs").add(data);
+
+ alert("✅ Log saved successfully");
+ startTime=Date.now(); // ⛔ NO RELOAD
+}
+</script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
 <title>Knowledge Base Tool</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -332,3 +544,4 @@ tool.onchange=()=>{
 </script>
 </body>
 </html>
+
