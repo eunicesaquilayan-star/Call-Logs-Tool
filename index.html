@@ -201,17 +201,16 @@ async function submitLog(){
     const minutes = ((Date.now() - startTime) / 60000).toFixed(2);
 
     await db.collection("logs").add({
-      agent: user,
-      tool: tool.value,
-      company: company.value,
-      disposition: disposition.value,
-      status: status.value,
-      ref: refInput.value || "",
-      notes: notes.value || "",
-      minutes: Number(minutes),
-      date: new Date().toISOString().split("T")[0],
-      created: firebase.firestore.FieldValue.serverTimestamp()
-    });
+  agent: user,
+  tool: tool.value,
+  company: company.value,
+  disposition: disposition.value,
+  status: status.value,
+  ref: refInput.value || "",
+  notes: notes.value || "",
+  minutes: Number(minutes),
+  created: firebase.firestore.FieldValue.serverTimestamp()
+});
 
     alert("✅ Log saved successfully");
     startTime = Date.now();
@@ -239,36 +238,41 @@ document.addEventListener("keydown", e => {
 });
 
 /* LOAD AGENT LOGS */
+/* LOAD AGENT LOGS */
 function loadAgentLogs(){
   db.collection("logs")
     .where("agent", "==", user)
     .orderBy("created", "desc")
-    .onSnapshot(
-      snap => {
-        agentLogs.innerHTML = "";
-        snap.forEach(doc => {
-          const d = doc.data();
-          agentLogs.innerHTML += `
-            <tr>
-              <td>${d.agent}</td>
-              <td>${d.company}</td>
-              <td>${d.disposition}</td>
-              <td>${d.status}</td>
-              <td class="note-box">${d.notes}</td>
-              <td>${d.date}</td>
-            </tr>`;
-        });
-      },
-      err => {
-        console.error("🔥 Snapshot error:", err);
-      }
-    );
+    .onSnapshot(snap => {
+
+      agentLogs.innerHTML = "";
+
+      snap.forEach(doc => {
+        const d = doc.data();
+
+        agentLogs.innerHTML += `
+          <tr>
+            <td>${d.agent}</td>
+            <td>${d.company}</td>
+            <td>${d.disposition}</td>
+            <td>${d.status}</td>
+            <td class="note-box">${d.notes}</td>
+            <td>${d.created ? d.created.toDate().toLocaleString() : ""}</td>
+          </tr>
+        `;
+      });
+
+    }, err => {
+      console.error("🔥 Snapshot error:", err);
+    });
 }
+
 </script>
 
 
 </body>
 </html>
+
 
 
 
