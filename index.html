@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
+
 <style>
 :root{
  --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
@@ -21,15 +22,11 @@ body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
 header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
 button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
 input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
-textarea{min-height:180px}
+textarea{min-height:220px}
 .hidden{display:none}
 table{width:100%;border-collapse:collapse;margin-top:20px}
-th,td{border:1px solid var(--border);padding:10px;font-size:14px}
-.preview{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
-.badge{padding:4px 8px;border-radius:6px;background:#198754;color:#fff;font-size:12px}
-.filters{display:flex;gap:10px;margin:15px 0}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
-.stat{background:#eef2ff;padding:15px;border-radius:10px}
+th,td{border:1px solid var(--border);padding:10px}
+.note-box{white-space:pre-wrap}
 </style>
 </head>
 
@@ -38,7 +35,7 @@ th,td{border:1px solid var(--border);padding:10px;font-size:14px}
 <div class="container">
 
 <header>
- <img src="./images/SL-Logo4.png" height="90">
+ <img src="./images/SL-Logo4.png" height="95">
  <div>
   <button onclick="toggleTheme()">🌙 / ☀️</button>
   <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
@@ -93,23 +90,10 @@ ACTION TAKEN:</textarea>
 
 <button onclick="submitLog()">Submit Log</button>
 
-<h4>My History</h4>
-
-<div class="filters">
- <select id="filterCompany"></select>
- <input type="date" id="filterDate">
- <button onclick="loadAgentLogs()">Filter</button>
-</div>
-
 <table>
 <thead>
 <tr>
-<th>Customer</th>
-<th>Company</th>
-<th>Disposition</th>
-<th>Status</th>
-<th>Notes</th>
-<th>Date</th>
+<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
 </tr>
 </thead>
 <tbody id="agentLogs"></tbody>
@@ -117,75 +101,113 @@ ACTION TAKEN:</textarea>
 
 </div>
 
-<!-- ADMIN -->
+ <!-- ADMIN -->
 <div id="adminSection" class="hidden">
+  <h3>Admin Dashboard</h3>
 
-<h3>Admin Dashboard</h3>
+  <div id="adminStats"></div>
 
-<div class="stats">
- <div class="stat" id="statAgents"></div>
- <div class="stat" id="statCompany"></div>
- <div class="stat" id="statDisposition"></div>
- <div class="stat" id="statResolved"></div>
+  <button onclick="exportCSV()">⬇ Export CSV</button>
 </div>
 
-<button onclick="exportCSV()">⬇ Export CSV</button>
-
-</div>
 
 <script>
-/* FIREBASE */
+/* 🔥 FIREBASE INIT */
 firebase.initializeApp({
   apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain: "call-logs-tool.firebaseapp.com",
   projectId: "call-logs-tool"
 });
+
 const db = firebase.firestore();
 const auth = firebase.auth();
+ 
+/* 🔗 DOM ELEMENTS */
+const loginSection = document.getElementById("loginSection");
+const agentSection = document.getElementById("agentSection");
+const logoutBtn = document.getElementById("logoutBtn");
 
-/* AUTH */
-auth.signInAnonymously();
+const tool = document.getElementById("tool");
+const company = document.getElementById("company");
+const disposition = document.getElementById("disposition");
+const status = document.getElementById("status");
+const refInput = document.getElementById("ref");
+const notes = document.getElementById("notes");
+const agentLogs = document.getElementById("agentLogs");
 
 /* STATE */
 let user = sessionStorage.getItem("user") || "";
-let isAdmin = false;
 let startTime = Date.now();
+
+
+let authReady = false;
+let isAdmin = false;
+
+
+/* 🔐 SIGN IN (REQUIRED FOR FIRESTORE RULES) */
+auth.signInAnonymously()
+  .then(() => {
+    console.log("✅ Anonymous auth started");
+  })
+  .catch(err => {
+    console.error("❌ Auth error:", err);
+  });
+
+/* 🔐 AUTH STATE LISTENER */
+auth.onAuthStateChanged(u => {
+  if (u) {
+    authReady = true;
+    console.log("🔐 Auth ready:", u.uid);
+  }
+});
+
+ function toggleTheme(){
+  document.body.classList.toggle("dark");
+}
 
 /* LOGIN */
 function login(){
- const email = email.value = document.getElementById("email").value.trim();
- const pass = document.getElementById("password").value;
+  const emailVal = document.getElementById("email").value.trim();
+  const pass = document.getElementById("password").value;
 
- if(!email) return alert("Email required");
+  if(!emailVal) return alert("Email required");
 
- user = email;
- sessionStorage.setItem("user", user);
+  user = emailVal;
+  sessionStorage.setItem("user", user);
+  startTime = Date.now();
 
- if(pass === "SL@123"){
-   isAdmin = true;
-   adminSection.classList.remove("hidden");
-   agentSection.classList.add("hidden");
-   loadAdminStats();
- } else {
-   agentSection.classList.remove("hidden");
-   adminSection.classList.add("hidden");
-   loadAgentLogs();
- }
+  loginSection.classList.add("hidden");
+  logoutBtn.classList.remove("hidden");
 
- loginSection.classList.add("hidden");
- logoutBtn.classList.remove("hidden");
+  if(pass === "SL@123"){
+    isAdmin = true;
+    agentSection.classList.add("hidden");
+    adminSection.classList.remove("hidden");
+    loadAdminAnalytics();
+  } else {
+    agentSection.classList.remove("hidden");
+    adminSection.classList.add("hidden");
+    loadAgentLogs();
+  }
 }
 
 /* LOGOUT */
 function logout(){
- sessionStorage.clear();
- location.reload();
+  sessionStorage.clear();
+  location.reload();
 }
 
-function toggleTheme(){ document.body.classList.toggle("dark"); }
+/* AUTO RESTORE SESSION */
+if(user){
+  loginSection.classList.add("hidden");
+  agentSection.classList.remove("hidden");
+  logoutBtn.classList.remove("hidden");
+  loadAgentLogs();
+}
+
 
 /* TOOL → COMPANY */
-const companyMap={
+const companyMap = {
  Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
  Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
  "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
@@ -193,90 +215,150 @@ const companyMap={
 
 function loadCompanies(){
  company.innerHTML='<option value="">Select Company *</option>';
- (companyMap[tool.value]||[]).forEach(c=>{
-  company.innerHTML+=`<option>${c}</option>`;
+ company.disabled=true;
+ (companyMap[tool.value] || []).forEach(c=>{
+  const o=document.createElement("option");
+  o.value=c;
+  o.textContent=c;
+  company.appendChild(o);
  });
+ company.disabled=false;
 }
 
-/* SUBMIT */
+/* SUBMIT LOG */
 async function submitLog(){
- if(!tool.value||!company.value||!disposition.value) return alert("Complete required fields");
 
- await db.collection("logs").add({
-  agent:user,
-  customer:name.value,
-  company:company.value,
-  disposition:disposition.value,
-  status:status.value,
-  notes:notes.value,
-  created:firebase.firestore.FieldValue.serverTimestamp()
- });
+  if (!authReady) {
+    alert("Auth still initializing. Please wait 1–2 seconds and try again.");
+    return;
+  }
 
- /* CLEAR FIELDS */
- name.value=phone.value=ref.value="";
- disposition.value="";
- status.value="Open";
- notes.value="CONCERN:\n\nACTION TAKEN:";
- startTime=Date.now();
+  if(!tool.value || !company.value || !disposition.value){
+    alert("Please complete required fields");
+    return;
+  }
 
- loadAgentLogs();
+  try {
+    const minutes = ((Date.now() - startTime) / 60000).toFixed(2);
+
+    await db.collection("logs").add({
+      agent: user,
+      tool: tool.value,
+      company: company.value,
+      disposition: disposition.value,
+      status: status.value,
+      ref: refInput.value || "",
+      notes: notes.value || "",
+      minutes: Number(minutes),
+      created: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    alert("✅ Log saved successfully");
+    startTime = Date.now();
+    refInput.value = "";
+tool.value="";
+company.innerHTML='<option value="">Select Company *</option>';
+company.disabled=true;
+disposition.value="";
+status.value="Open";
+refInput.value="";
+notes.value="CONCERN:\n\nACTION TAKEN:";
+
+
+  } catch (err) {
+    console.error("🔥 Firestore write failed:", err);
+    alert("❌ Failed to save log. Check console.");
+  }
 }
 
-/* AGENT HISTORY */
+/* ENTER TO SUBMIT */
+document.addEventListener("keydown", e => {
+
+  // ENTER = login
+  if (e.key === "Enter" && !loginSection.classList.contains("hidden")) {
+    login();
+  }
+
+  // CTRL + ENTER = submit log
+  if (e.key === "Enter" && e.ctrlKey && !agentSection.classList.contains("hidden")) {
+    submitLog();
+  }
+
+});
+
+/* LOAD AGENT LOGS */
 function loadAgentLogs(){
- agentLogs.innerHTML="";
- db.collection("logs")
- .where("agent","==",user)
- .orderBy("created","desc")
- .get()
- .then(s=>{
-  s.forEach(d=>{
-   const x=d.data();
-   agentLogs.innerHTML+=`
-    <tr>
-     <td>${x.customer||""}</td>
-     <td>${x.company}</td>
-     <td>${x.disposition}</td>
-     <td>${x.status}</td>
-     <td class="preview">${x.notes||""}</td>
-     <td>${x.created?x.created.toDate().toLocaleString():""}</td>
-    </tr>`;
+  db.collection("logs")
+    .where("agent", "==", user)
+    .orderBy("created", "desc")
+    .onSnapshot(snap => {
+
+      agentLogs.innerHTML = "";
+
+      snap.forEach(doc => {
+        const d = doc.data();
+
+        agentLogs.innerHTML += `
+          <tr>
+            <td>${d.agent}</td>
+            <td>${d.company}</td>
+            <td>${d.disposition}</td>
+            <td>${d.status}</td>
+            <td class="note-box">${d.notes}</td>
+            <td>${d.created ? d.created.toDate().toLocaleString() : ""}</td>
+          </tr>
+        `;
+      });
+
+    }, err => {
+      console.error("🔥 Snapshot error:", err)
+     });
+ 
+ function loadAdminAnalytics(){
+  db.collection("logs").get().then(snap=>{
+    let byAgent={}, byCompany={}, byDisp={}, resolved=0;
+
+    snap.forEach(doc=>{
+      const d = doc.data();
+      byAgent[d.agent]=(byAgent[d.agent]||0)+1;
+      byCompany[d.company]=(byCompany[d.company]||0)+1;
+      byDisp[d.disposition]=(byDisp[d.disposition]||0)+1;
+      if(d.status==="Resolved") resolved++;
+    });
+
+    adminStats.innerHTML = `
+      <p><b>Logs per Agent</b><br>${Object.entries(byAgent).map(x=>`${x[0]}: ${x[1]}`).join("<br>")}</p>
+      <p><b>Most Used Company</b><br>${Object.entries(byCompany).sort((a,b)=>b[1]-a[1])[0]}</p>
+      <p><b>Most Used Disposition</b><br>${Object.entries(byDisp).sort((a,b)=>b[1]-a[1])[0]}</p>
+      <p><b>Resolved</b><br>${resolved} / ${snap.size} (${((resolved/snap.size)*100).toFixed(1)}%)</p>
+    `;
   });
- });
 }
 
-/* ADMIN ANALYTICS */
-function loadAdminStats(){
- db.collection("logs").get().then(s=>{
-  let agents={},company={},disp={},res=0;
-  s.forEach(d=>{
-   const x=d.data();
-   agents[x.agent]=(agents[x.agent]||0)+1;
-   company[x.company]=(company[x.company]||0)+1;
-   disp[x.disposition]=(disp[x.disposition]||0)+1;
-   if(x.status==="Resolved") res++;
+ function exportCSV(){
+  db.collection("logs").get().then(snap=>{
+    let csv="Agent,Company,Disposition,Status,Notes,Date\n";
+    snap.forEach(d=>{
+      const x=d.data();
+      csv+=`${x.agent},${x.company},${x.disposition},${x.status},"${(x.notes||"").replace(/"/g,'""')}",${x.created?.toDate()}\n`;
+    });
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    a.download="call_logs.csv";
+    a.click();
   });
-  statAgents.innerHTML="<b>Logs / Agent</b><br>"+Object.entries(agents).map(x=>`${x[0]}: ${x[1]}`).join("<br>");
-  statCompany.innerHTML="<b>Top Company</b><br>"+Object.entries(company).sort((a,b)=>b[1]-a[1])[0];
-  statDisposition.innerHTML="<b>Top Disposition</b><br>"+Object.entries(disp).sort((a,b)=>b[1]-a[1])[0];
-  statResolved.innerHTML=`<b>Resolved</b><br>${res} / ${s.size} (${((res/s.size)*100).toFixed(1)}%)`;
- });
 }
 
-/* EXPORT */
-function exportCSV(){
- db.collection("logs").get().then(s=>{
-  let csv="Agent,Customer,Company,Disposition,Status,Notes,Date\n";
-  s.forEach(d=>{
-   const x=d.data();
-   csv+=`${x.agent},${x.customer||""},${x.company},${x.disposition},${x.status},"${(x.notes||"").replace(/"/g,'""')}",${x.created?.toDate()}\n`;
-  });
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-  a.download="call_logs.csv";
-  a.click();
- });
 }
+
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
