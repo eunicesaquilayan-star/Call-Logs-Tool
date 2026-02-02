@@ -101,16 +101,6 @@ ACTION TAKEN:</textarea>
 
 </div>
 
- <!-- ADMIN -->
-<div id="adminSection" class="hidden">
-  <h3>Admin Dashboard</h3>
-
-  <div id="adminStats"></div>
-
-  <button onclick="exportCSV()">⬇ Export CSV</button>
-</div>
-
-
 <script>
 /* 🔥 FIREBASE INIT */
 firebase.initializeApp({
@@ -141,8 +131,6 @@ let startTime = Date.now();
 
 
 let authReady = false;
-let isAdmin = false;
-
 
 /* 🔐 SIGN IN (REQUIRED FOR FIRESTORE RULES) */
 auth.signInAnonymously()
@@ -167,28 +155,18 @@ auth.onAuthStateChanged(u => {
 
 /* LOGIN */
 function login(){
-  const emailVal = document.getElementById("email").value.trim();
-  const pass = document.getElementById("password").value;
+  const u = document.getElementById("email").value.trim();
+  if(!u) return alert("Email required");
 
-  if(!emailVal) return alert("Email required");
-
-  user = emailVal;
+  user = u;
   sessionStorage.setItem("user", user);
   startTime = Date.now();
 
   loginSection.classList.add("hidden");
+  agentSection.classList.remove("hidden");
   logoutBtn.classList.remove("hidden");
 
-  if(pass === "SL@123"){
-    isAdmin = true;
-    agentSection.classList.add("hidden");
-    adminSection.classList.remove("hidden");
-    loadAdminAnalytics();
-  } else {
-    agentSection.classList.remove("hidden");
-    adminSection.classList.add("hidden");
-    loadAgentLogs();
-  }
+  loadAgentLogs();
 }
 
 /* LOGOUT */
@@ -256,14 +234,6 @@ async function submitLog(){
     alert("✅ Log saved successfully");
     startTime = Date.now();
     refInput.value = "";
-tool.value="";
-company.innerHTML='<option value="">Select Company *</option>';
-company.disabled=true;
-disposition.value="";
-status.value="Open";
-refInput.value="";
-notes.value="CONCERN:\n\nACTION TAKEN:";
-
 
   } catch (err) {
     console.error("🔥 Firestore write failed:", err);
@@ -311,54 +281,10 @@ function loadAgentLogs(){
       });
 
     }, err => {
-      console.error("🔥 Snapshot error:", err)
+      console.error("🔥 Snapshot error:", err);
      });
- 
- function loadAdminAnalytics(){
-  db.collection("logs").get().then(snap=>{
-    let byAgent={}, byCompany={}, byDisp={}, resolved=0;
-
-    snap.forEach(doc=>{
-      const d = doc.data();
-      byAgent[d.agent]=(byAgent[d.agent]||0)+1;
-      byCompany[d.company]=(byCompany[d.company]||0)+1;
-      byDisp[d.disposition]=(byDisp[d.disposition]||0)+1;
-      if(d.status==="Resolved") resolved++;
-    });
-
-    adminStats.innerHTML = `
-      <p><b>Logs per Agent</b><br>${Object.entries(byAgent).map(x=>`${x[0]}: ${x[1]}`).join("<br>")}</p>
-      <p><b>Most Used Company</b><br>${Object.entries(byCompany).sort((a,b)=>b[1]-a[1])[0]}</p>
-      <p><b>Most Used Disposition</b><br>${Object.entries(byDisp).sort((a,b)=>b[1]-a[1])[0]}</p>
-      <p><b>Resolved</b><br>${resolved} / ${snap.size} (${((resolved/snap.size)*100).toFixed(1)}%)</p>
-    `;
-  });
-}
-
- function exportCSV(){
-  db.collection("logs").get().then(snap=>{
-    let csv="Agent,Company,Disposition,Status,Notes,Date\n";
-    snap.forEach(d=>{
-      const x=d.data();
-      csv+=`${x.agent},${x.company},${x.disposition},${x.status},"${(x.notes||"").replace(/"/g,'""')}",${x.created?.toDate()}\n`;
-    });
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
-    a.download="call_logs.csv";
-    a.click();
-  });
-}
-
 }
 
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
