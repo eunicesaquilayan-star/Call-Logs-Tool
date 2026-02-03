@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Call Logs Tool</title>
 
+<!-- Favicon (prevents 404 error) -->
+<link rel="icon" href="data:,">
+
 <!-- Firebase COMPAT -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -218,26 +221,41 @@ function loadCompanies(){
 }
 
 function saveLog(){
-  if(!customer.value || !tool.value || !company.value){
+  const customerEl = document.getElementById('customer');
+  const phoneEl = document.getElementById('phone');
+  const refEl = document.getElementById('refId');
+  const toolEl = document.getElementById('tool');
+  const companyEl = document.getElementById('company');
+  const dispositionEl = document.getElementById('disposition');
+  const statusEl = document.getElementById('status');
+  const notesEl = document.getElementById('notes');
+
+  if(!customerEl.value || !toolEl.value || !companyEl.value){
     alert('Please complete required fields');
     return;
   }
+
   db.collection('logs').add({
-    customer:customer.value,
-    phone:phone.value || '',
-    ref:refId.value || '',
-    tool:tool.value,
-    company:company.value,
-    disposition:disposition.value,
-    status:status.value,
-    notes:notes.value.trim(),
-    agent:auth.currentUser.email,
-    created:firebase.firestore.FieldValue.serverTimestamp()
+    customer: customerEl.value,
+    phone: phoneEl.value || '',
+    ref: refEl.value || '',
+    tool: toolEl.value,
+    company: companyEl.value,
+    disposition: dispositionEl.value || '',
+    status: statusEl.value || 'Open', // 🔒 guaranteed value
+    notes: notesEl.value.trim(),
+    agent: auth.currentUser.email,
+    created: firebase.firestore.FieldValue.serverTimestamp()
   }).then(()=>{
-    customer.value=phone.value=refId.value='';
-    notes.value="Concern:\n\n\nAction Taken:";
+    customerEl.value = '';
+    phoneEl.value = '';
+    refEl.value = '';
+    notesEl.value = "Concern:\n\n\nAction Taken:";
     loadLogs();
-  }).catch(e=>alert(e.message));
+  }).catch(e=>{
+    console.error(e);
+    alert(e.message);
+  });
 }
 
 function loadLogs(){
@@ -291,3 +309,4 @@ function exportCSV(){
 </script>
 </body>
 </html>
+
