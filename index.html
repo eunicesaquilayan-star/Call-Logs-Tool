@@ -18,7 +18,8 @@
   --bg:#f4f6f9;
   --card:#fff;
   --primary:#5b2be0;
-  .toast{
+}
+.toast{
   position:fixed;
   top:20px;
   right:20px;
@@ -28,27 +29,24 @@
   border-radius:8px;
   box-shadow:0 4px 12px rgba(0,0,0,.2);
   z-index:9999;
-
   opacity:0;
-  transform:translateY(-10px);
+  transform:translateY(-20px);
   pointer-events:none;
-  transition:opacity .3s ease, transform .3s ease;
+  transition:opacity .4s ease, transform .4s ease;
 }
-
 .toast.show{
   opacity:1;
   transform:translateY(0);
-
 }
 body{margin:0;font-family:Arial;background:var(--bg)}
 header{display:none;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
 .container{max-width:1200px;margin:auto;padding:20px}
 .card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);margin-bottom:20px}
 input,select,textarea{width:100%;padding:10px;margin-bottom:10px;border-radius:8px;border:1px solid #ccc}
-.primary{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px}
-.logout{background:#666;color:#fff;border:none;padding:6px 12px;border-radius:6px}
+.primary{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
+.logout{background:#666;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer}
 table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px}
+th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
 .hidden{display:none}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;border-radius:10px;max-width:500px;width:90%}
@@ -80,86 +78,76 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px}
 <!-- APP -->
 <div id="app" class="container hidden">
 
-<!-- AGENT FORM -->
-<div id="agentForm" class="card">
-<h3>New Call Log</h3>
+  <!-- AGENT FORM -->
+  <div id="agentForm" class="card">
+    <h3>New Call Log</h3>
+    <input id="customer" placeholder="Customer Name">
+    <input id="phone" placeholder="Phone Number">
+    <input id="refId" placeholder="User ID / Order # / INV #">
+    <select id="tool" onchange="loadCompanies()">
+      <option value="">Select Tool</option>
+      <option>Shopify</option>
+      <option>Marcom</option>
+      <option>Marketing Bench</option>
+    </select>
+    <select id="company"></select>
+    <select id="disposition">
+      <option>Password Reset</option>
+      <option>Order Entry</option>
+      <option>Order Status/ Tracking</option>
+      <option>Impersonate</option>
+    </select>
+    <select id="status">
+      <option>Open</option>
+      <option>Follow-up</option>
+      <option>Resolved</option>
+    </select>
+    <textarea id="notes" rows="6">Concern:
 
-<input id="customer" placeholder="Customer Name">
-<input id="phone" placeholder="Phone Number">
-<input id="refId" placeholder="User ID / Order # / INV #">
-
-<select id="tool" onchange="loadCompanies()">
-<option value="">Select Tool</option>
-<option>Shopify</option>
-<option>Marcom</option>
-<option>Marketing Bench</option>
-</select>
-
-<select id="company"></select>
-
-<select id="disposition">
-<option>Password Reset</option>
-<option>Order Entry</option>
-<option>Order Status/ Tracking</option>
-<option>Impersonate</option>
-</select>
-
-<select id="status">
-<option>Open</option>
-<option>Follow-up</option>
-<option>Resolved</option>
-</select>
-
-<textarea id="notes" rows="6">
-Concern:
-
-
-Action Taken:
-</textarea>
-
-<button class="primary" onclick="saveLog()">Submit Log</button>
-</div>
+Action Taken:</textarea>
+    <button class="primary" onclick="saveLog()">Submit Log</button>
+  </div>
   
-<div class="card">
-<h3>My Daily Stats</h3>
-<input type="date" id="agentDay">
-<button class="primary" onclick="loadAgentStats()">View</button>
-<div id="agentStats"></div>
-</div>
+  <!-- AGENT DAILY STATS -->
+  <div class="card">
+    <h3>My Daily Stats</h3>
+    <input type="date" id="agentDay">
+    <button class="primary" onclick="loadAgentStats()">View</button>
+    <div id="agentStats"></div>
+  </div>
 
-<!-- HISTORY -->
-<div class="card">
-<h3>History</h3>
-<table>
-<thead>
-<tr>
-<th>Customer</th><th>Phone</th><th>Company</th>
-<th>Disposition</th><th>Status</th><th>Agent</th>
-<th>Date</th><th>Notes</th><th></th>
-</tr>
-</thead>
-<tbody id="logTable"></tbody>
-</table>
-</div>
+  <!-- AGENT HISTORY -->
+  <div class="card">
+    <h3>History</h3>
+    <input type="text" id="searchCustomer" placeholder="Search by Customer">
+    <select id="filterCompany"></select>
+    <input type="date" id="filterStartDate">
+    <input type="date" id="filterEndDate">
+    <button class="primary" onclick="loadLogs()">Search / Filter</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th><th>Phone</th><th>Company</th>
+          <th>Disposition</th><th>Status</th><th>Agent</th>
+          <th>Date</th><th>Notes</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="logTable"></tbody>
+    </table>
+  </div>
 
-<!-- ADMIN -->
-<div id="adminPanel" class="card hidden">
-<h3>Admin Analytics</h3>
-  <select id="adminCompanyFilter">
-  <option value="">All Companies</option>
-</select>
-
-<input type="date" id="adminStartDate">
-<input type="date" id="adminEndDate">
-
-<button class="primary" onclick="loadAdminAnalytics()">Run Analytics</button>
-
-<hr>
-<div id="leaderboard"></div>
-<div id="analytics"></div>
-
-<button class="primary" onclick="exportCSV()">Export CSV</button>
-</div>
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel" class="card hidden">
+    <h3>Admin Analytics</h3>
+    <select id="adminCompanyFilter"></select>
+    <input type="date" id="adminStartDate">
+    <input type="date" id="adminEndDate">
+    <button class="primary" onclick="loadAdminAnalytics()">Run Analytics</button>
+    <hr>
+    <div id="leaderboard"></div>
+    <div id="analytics"></div>
+    <button class="primary" onclick="exportCSV()">Export CSV</button>
+  </div>
 
 </div>
 
@@ -168,24 +156,11 @@ Action Taken:
   <div class="modal-content">
     <div id="modalText"></div>
     <button class="primary" onclick="closeModal()">Close</button>
+  </div>
 </div>
-</div>
-<!-- LOGIN SUCCESS TOAST -->
-<div id="loginToast" style="
-  position:fixed;
-  top:20px;
-  right:20px;
-  background:#5b2be0;
-  color:#fff;
-  padding:12px 18px;
-  border-radius:8px;
-  box-shadow:0 4px 12px rgba(0,0,0,.2);
-  display:none;
-  z-index:9999;
-">
-  ✅ Login successful
-</div>
-</div>
+
+<div id="actionToast" class="toast"></div>
+<div id="loginToast" class="toast">Login successful!</div>
 
 <script>
 firebase.initializeApp({
@@ -197,63 +172,50 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 let isAdmin=false;
 
+// LOGIN
 function login(){
-  const email=loginEmail.value.trim();
+  const email = loginEmail.value.trim();
   if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
   auth.signInWithEmailAndPassword(email,loginPassword.value).catch(e=>alert(e.message));
 }
-  document.addEventListener('keydown', e=>{
+
+// ENTER KEY HANDLING
+document.addEventListener('keydown', e=>{
   if(e.key !== 'Enter') return;
 
-  // LOGIN SCREEN
-  if(!loginPage.classList.contains('hidden')){
-    login();
-    return;
-  }
-
-  // ignore enter inside textarea
-  if(document.activeElement.tagName === 'TEXTAREA') return;
-
-  // AGENT SUBMIT
-  if(!agentForm.classList.contains('hidden')){
-    saveLog();
-  }
+  if(!loginPage.classList.contains('hidden')) login();
+  if(document.activeElement.tagName==='TEXTAREA') return;
+  if(!agentForm.classList.contains('hidden')) saveLog();
 });
 
+// LOGOUT
+function logout(){ auth.signOut(); }
 
-function logout(){auth.signOut();}
-
+// AUTH STATE
 auth.onAuthStateChanged(u=>{
   if(u){
-  showLoginSuccess();
-    isAdmin=u.email.startsWith('admin');
+    showToast('✅ Login successful',2000);
+    isAdmin = u.email.startsWith('admin');
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
-    userEmail.textContent=u.email;
+    userEmail.textContent = u.email;
+
     if(isAdmin){
-  loadAdminCompanies();
-  adminPanel.classList.remove('hidden');
-  agentForm.classList.add('hidden');
-  document.querySelector('#agentDay').closest('.card').classList.add('hidden');
-}
+      adminPanel.classList.remove('hidden');
+      agentForm.classList.add('hidden');
+      document.querySelector('#agentDay').closest('.card').classList.add('hidden');
+      loadAdminCompanies();
+    }
     loadLogs();
-  }else{
+  } else {
     loginPage.classList.remove('hidden');
     app.classList.add('hidden');
     appHeader.style.display='none';
   }
 });
-  function showLoginSuccess(){
-  const toast = document.getElementById('loginToast');
-  toast.classList.add('show');
 
-  setTimeout(()=>{
-    toast.classList.remove('show');
-  }, 2500);
-}
-
-
+// COMPANIES
 const companies={
   "Shopify":[
     "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
@@ -296,18 +258,15 @@ const companies={
     "Webb/Mason Company Store","Westmoor Mfg Co",
     "Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
   ]
-};
 
 function loadCompanies(){
   company.innerHTML='';
-  (companies[tool.value] || []).forEach(c=>{
-    const o=document.createElement('option');
-    o.value=o.textContent=c;
-    company.appendChild(o);
+  (companies[tool.value]||[]).forEach(c=>{
+    const o=document.createElement('option'); o.value=o.textContent=c; company.appendChild(o);
   });
 }
 
-
+// SAVE LOG
 function saveLog(){
   const customerEl = document.getElementById('customer');
   const phoneEl = document.getElementById('phone');
@@ -318,153 +277,93 @@ function saveLog(){
   const statusEl = document.getElementById('status');
   const notesEl = document.getElementById('notes');
 
-  if(!customerEl.value || !toolEl.value || !companyEl.value){
-    alert('Please complete required fields');
-    return;
-  }
+  if(!customerEl.value || !toolEl.value || !companyEl.value) return alert('Please complete required fields');
 
   db.collection('logs').add({
     customer: customerEl.value,
-    phone: phoneEl.value || '',
-    ref: refEl.value || '',
+    phone: phoneEl.value||'',
+    ref: refEl.value||'',
     tool: toolEl.value,
     company: companyEl.value,
-    disposition: dispositionEl.value || '',
-    status: statusEl.value || 'Open', // 🔒 guaranteed value
+    disposition: dispositionEl.value||'',
+    status: statusEl.value||'Open',
     notes: notesEl.value.trim(),
     agent: auth.currentUser.email,
     created: firebase.firestore.FieldValue.serverTimestamp(),
-    createdDay: new Date().toISOString().slice(0,10), // YYYY-MM-DD
-    createdMonth: new Date().toISOString().slice(0,7) // YYYY-MM
-
+    createdDay: new Date().toISOString().slice(0,10),
+    createdMonth: new Date().toISOString().slice(0,7)
   }).then(()=>{
-    customerEl.value = '';
-    phoneEl.value = '';
-    refEl.value = '';
-    notesEl.value = "Concern:\n\n\nAction Taken:";
+    customerEl.value=''; phoneEl.value=''; refEl.value=''; notesEl.value="Concern:\n\n\nAction Taken:";
+    showToast("✅ Log saved successfully");
     loadLogs();
-  }).catch(e=>{
-    console.error(e);
-    alert(e.message);
-  });
+  }).catch(e=>alert(e.message));
 }
 
+// SHOW TOAST
+function showToast(msg,duration=2500){
+  const t=document.getElementById('actionToast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),duration);
+}
+
+// POPULATE FILTERS
+function populateCompanyFilter(){
+  const companySelect=document.getElementById('filterCompany');
+  companySelect.innerHTML='<option value="">All Companies</option>';
+  const allCompanies=[].concat(...Object.values(companies));
+  allCompanies.forEach(c=>{
+    const o=document.createElement('option'); o.value=o.textContent=c; companySelect.appendChild(o);
+  });
+}
+populateCompanyFilter();
+
+// LOAD LOGS (AGENT)
 function loadLogs(){
-  logTable.innerHTML='';
-  db.collection('logs').orderBy('created','desc').get().then(s=>{
-    s.forEach(d=>{
-      const l=d.data();
-      const tr=document.createElement('tr');
-      tr.innerHTML=`
-<td>${l.customer}</td>
-<td>${l.phone}</td>
-<td>${l.company}</td>
-<td>${l.disposition}</td>
-<td>${l.status}</td>
-<td>${l.agent}</td>
-<td>${l.created?.toDate().toLocaleString()||''}</td>
-<td><button onclick="viewNotes('${d.id}')">View</button></td>
-<td>${isAdmin?`<button onclick="deleteLog('${d.id}')">Delete</button>`:''}</td>`;
-      logTable.appendChild(tr);
-    });
-  });
-}
-  function loadAdminAnalytics(){
-  let q = db.collection('logs');
+  const table=document.getElementById('logTable');
+  table.innerHTML='';
+  let q=db.collection('logs').orderBy('created','desc');
 
-  const company = adminCompanyFilter.value;
-  const start = adminStartDate.value;
-  const end = adminEndDate.value;
+  const customerSearch=document.getElementById('searchCustomer').value.trim().toLowerCase();
+  const companyFilter=document.getElementById('filterCompany').value;
+  const startDate=document.getElementById('filterStartDate').value;
+  const endDate=document.getElementById('filterEndDate').value;
 
-  if(company) q = q.where('company','==',company);
-  if(start) q = q.where('createdDay','>=',start);
-  if(end) q = q.where('createdDay','<=',end);
+  if(companyFilter) q=q.where('company','==',companyFilter);
+  if(startDate) q=q.where('createdDay','>=',startDate);
+  if(endDate) q=q.where('createdDay','<=',endDate);
 
   q.get().then(s=>{
-    const agentStats = {};
-    const dispositionStats = {};
-    const companyStats = {};
-
     s.forEach(d=>{
       const l=d.data();
-      const a=l.agent;
-
-      if(!agentStats[a]){
-        agentStats[a]={logs:0,resolved:0};
-      }
-      agentStats[a].logs++;
-      if(l.status==='Resolved') agentStats[a].resolved++;
-
-      dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
-      companyStats[l.company]=(companyStats[l.company]||0)+1;
+      if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+<td>${l.customer}</td><td>${l.phone}</td><td>${l.company}</td><td>${l.disposition}</td>
+<td>${l.status}</td><td>${l.agent}</td><td>${l.created?.toDate().toLocaleString()||''}</td>
+<td><button onclick="viewNotes('${d.id}')">View</button></td>
+<td>${isAdmin?`<button onclick="deleteLog('${d.id}')">Delete</button>`:''}</td>`;
+      table.appendChild(tr);
     });
-
-    // LEADERBOARD
-    let lb = `<h4>Agent Activity Leaderboard</h4>
-    <table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>% Resolved</th></tr>`;
-    Object.entries(agentStats)
-      .sort((a,b)=>b[1].logs-a[1].logs)
-      .forEach(([a,v])=>{
-        const pct = ((v.resolved/v.logs)*100||0).toFixed(1);
-        lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
-      });
-    lb+='</table>';
-    leaderboard.innerHTML=lb;
-
-    // ANALYTICS
-    analytics.innerHTML = `
-      <h4>Most Used Disposition</h4>
-      ${Object.entries(dispositionStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
-
-      <h4 style="margin-top:15px">Most Used Company</h4>
-      ${Object.entries(companyStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
-    `;
   });
 }
-  function loadAgentStats(){
-  const day = agentDay.value;
-  if(!day) return alert('Select a date');
 
-  db.collection('logs')
-    .where('agent','==',auth.currentUser.email)
-    .where('createdDay','==',day)
-    .get()
-    .then(s=>{
-      let total=0,res=0;
-      s.forEach(d=>{
-        total++;
-        if(d.data().status==='Resolved') res++;
-      });
-      agentStats.innerHTML =
-        `<b>Total Logs:</b> ${total}<br>
-         <b>Resolved:</b> ${res}`;
-    });
-}
-
-
+// VIEW NOTES MODAL
 function viewNotes(id){
   db.collection('logs').doc(id).get().then(doc=>{
     if(!doc.exists) return;
-    const t = doc.data().notes || "";
-
-    modalText.innerHTML =
-      "<b>Concern</b><br><br>" +
-      t.split("Action Taken:")[0].replace("Concern:","") +
-      "<br><br><br><b>Action Taken</b><br><br>" +
-      (t.split("Action Taken:")[1] || "");
-
+    const t=doc.data().notes||"";
+    modalText.innerHTML=`<b>Concern</b><br><br>${t.split("Action Taken:")[0].replace("Concern:","")}
+<br><br><b>Action Taken</b><br><br>${t.split("Action Taken:")[1]||''}`;
     notesModal.style.display='flex';
   });
 }
+function closeModal(){ notesModal.style.display='none'; }
 
-function closeModal(){notesModal.style.display='none';}
-
+// DELETE LOG
 function deleteLog(id){
-  if(confirm('Delete this log?')){
-    db.collection('logs').doc(id).delete().then(loadLogs);
-  }
+  if(confirm('Delete this log?')) db.collection('logs').doc(id).delete().then(loadLogs);
 }
-/* ================= CSV EXPORT ================= */
+
+// EXPORT CSV
 function exportCSV(){
   db.collection('logs').get().then(s=>{
     let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
@@ -472,16 +371,58 @@ function exportCSV(){
       const l=d.data();
       csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.created?.toDate()||''},"${l.notes.replace(/\n/g,' ')}"\n`;
     });
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    a.download='call_logs.csv';
-    a.click();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='call_logs.csv'; a.click();
   });
 }
+
+// AGENT DAILY STATS
+function loadAgentStats(){
+  const day=document.getElementById('agentDay').value;
+  if(!day) return alert('Select a date');
+  db.collection('logs').where('agent','==',auth.currentUser.email).where('createdDay','==',day).get().then(s=>{
+    let total=0,res=0;
+    s.forEach(d=>{ total++; if(d.data().status==='Resolved') res++; });
+    agentStats.innerHTML=`<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${res}`;
+  });
+}
+
+// ADMIN ANALYTICS
+function loadAdminAnalytics(){
+  let q=db.collection('logs');
+  const company=document.getElementById('adminCompanyFilter').value;
+  const start=document.getElementById('adminStartDate').value;
+  const end=document.getElementById('adminEndDate').value;
+  if(company) q=q.where('company','==',company);
+  if(start) q=q.where('createdDay','>=',start);
+  if(end) q=q.where('createdDay','<=',end);
+  q.get().then(s=>{
+    const agentStats={}, dispositionStats={}, companyStats={};
+    s.forEach(d=>{
+      const l=d.data(),a=l.agent;
+      if(!agentStats[a]) agentStats[a]={logs:0,resolved:0};
+      agentStats[a].logs++; if(l.status==='Resolved') agentStats[a].resolved++;
+      dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
+      companyStats[l.company]=(companyStats[l.company]||0)+1;
+    });
+    // LEADERBOARD
+    let lb=`<h4>Agent Activity Leaderboard</h4><table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>% Resolved</th></tr>`;
+    Object.entries(agentStats).sort((a,b)=>b[1].logs-a[1].logs).forEach(([a,v])=>{
+      const pct=((v.resolved/v.logs)*100||0).toFixed(1);
+      lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
+    });
+    lb+='</table>'; leaderboard.innerHTML=lb;
+    analytics.innerHTML=`<h4>Most Used Disposition</h4>${Object.entries(dispositionStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
+<h4 style="margin-top:15px">Most Used Company</h4>${Object.entries(companyStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}`;
+  });
+}
+
+// LOAD ADMIN COMPANIES
+function loadAdminCompanies(){
+  const sel=document.getElementById('adminCompanyFilter');
+  sel.innerHTML='<option value="">All Companies</option>';
+  [].concat(...Object.values(companies)).forEach(c=>{ const o=document.createElement('option'); o.value=o.textContent=c; sel.appendChild(o); });
+}
 </script>
+
 </body>
 </html>
-
-
-
-
