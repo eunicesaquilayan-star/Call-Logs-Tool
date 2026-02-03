@@ -1,46 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Call Logs Tool</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Logs Tool</title>
 
-  <!-- Firebase CDN (COMPAT – required for GitHub Pages) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- Firebase COMPAT -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <style>
-    :root { --bg:#f4f6f9; --card:#fff; --primary:#5b2be0; --text:#222; }
-    body { margin:0; font-family:Arial,sans-serif; background:var(--bg); color:var(--text); }
-    header { display:none; align-items:center; justify-content:space-between; background:#fff; padding:10px 20px; box-shadow:0 2px 6px rgba(0,0,0,.1); }
-    .container { max-width:1100px; margin:auto; padding:20px; }
-    .card { background:var(--card); padding:20px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.08); margin-bottom:20px; }
-    input,select,textarea { width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #ccc; }
-    button { cursor:pointer; }
-    .primary { background:var(--primary); color:#fff; border:none; padding:10px 16px; border-radius:8px; }
-    .logout { background:#666; color:#fff; border:none; padding:6px 12px; border-radius:6px; }
-    table { width:100%; border-collapse:collapse; }
-    th,td { padding:10px; border-bottom:1px solid #ddd; font-size:13px; }
-    .hidden { display:none; }
-  </style>
+<style>
+:root{
+  --bg:#f4f6f9;
+  --card:#fff;
+  --primary:#5b2be0;
+  --text:#222;
+}
+body{margin:0;font-family:Arial;background:var(--bg)}
+header{
+  display:none;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 20px;
+  background:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.1)
+}
+.container{max-width:1200px;margin:auto;padding:20px}
+.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);margin-bottom:20px}
+input,select,textarea{width:100%;padding:10px;margin-bottom:10px;border-radius:8px;border:1px solid #ccc}
+button{cursor:pointer}
+.primary{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px}
+.logout{background:#666;color:#fff;border:none;padding:6px 12px;border-radius:6px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px}
+.hidden{display:none}
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.5);
+  display:none;align-items:center;justify-content:center
+}
+.modal-content{
+  background:#fff;padding:20px;border-radius:10px;max-width:500px;width:90%
+}
+</style>
 </head>
+
 <body>
 
 <!-- LOGIN -->
 <div id="loginPage" class="container">
-  <div class="card" style="max-width:420px;margin:auto;text-align:center;">
-    <img src="./images/SL-Logo.png" height="100" />
+  <div class="card" style="max-width:420px;margin:auto;text-align:center">
+    <img src="./images/SL-Logo.png" height="200">
     <h2>Login</h2>
-    <input id="loginEmail" type="email" placeholder="name@supplylogic.com" />
-    <input id="loginPassword" type="password" placeholder="Password" />
+    <input id="loginEmail" type="email" placeholder="name@supplylogic.com">
+    <input id="loginPassword" type="password" placeholder="Password">
     <button class="primary" onclick="login()">Login</button>
   </div>
 </div>
 
 <!-- HEADER -->
 <header id="appHeader">
-  <img src="./images/SL-Logo4.png" height="95" />
+  <img src="./images/SL-Logo4.png" height="95">
   <div>
     <span id="userEmail"></span>
     <button class="logout" onclick="logout()">Logout</button>
@@ -50,156 +70,206 @@
 <!-- APP -->
 <div id="app" class="container hidden">
 
-  <div class="card">
-    <h3>New Call Log</h3>
-    <input id="customer" placeholder="Customer Name" />
-    <input id="phone" placeholder="Phone Number" />
-    <input id="refId" placeholder="User ID / Order # / INV #" />
+<div class="card">
+<h3>New Call Log</h3>
+<input id="customer" placeholder="Customer Name">
+<input id="phone" placeholder="Phone Number">
+<input id="refId" placeholder="User ID / Order # / INV #">
 
-    <select id="tool" onchange="loadCompanies()">
-      <option value="">Select Tool</option>
-      <option>Shopify</option>
-      <option>Marcom</option>
-      <option>Marketing Bench</option>
-    </select>
+<select id="tool" onchange="loadCompanies()">
+<option value="">Select Tool</option>
+<option>Shopify</option>
+<option>Marcom</option>
+<option>Marketing Bench</option>
+</select>
 
-    <select id="company"></select>
+<select id="company"></select>
 
-    <select id="disposition">
-      <option>Password Reset</option>
-      <option>Order Entry</option>
-      <option>Order Status/ Tracking</option>
-      <option>Impersonate</option>
-    </select>
+<select id="disposition">
+<option>Password Reset</option>
+<option>Order Entry</option>
+<option>Order Status/ Tracking</option>
+<option>Impersonate</option>
+</select>
 
-    <select id="status">
-      <option>Open</option>
-      <option>Follow-up</option>
-      <option>Resolved</option>
-    </select>
+<select id="status">
+<option>Open</option>
+<option>Follow-up</option>
+<option>Resolved</option>
+</select>
 
-    <textarea id="notes" rows="6">Concern:\n\n\nAction Taken:</textarea>
-    <button class="primary" onclick="saveLog()">Submit Log</button>
-  </div>
+<textarea id="notes" rows="6"><b>Concern:</b>
 
-  <div class="card">
-    <h3>History</h3>
-    <table>
-      <thead><tr><th>Customer</th><th>Phone</th><th>Company</th><th>Disposition</th><th>Status</th><th>Agent</th><th>Date</th><th>Notes</th></tr></thead>
-      <tbody id="logTable"></tbody>
-    </table>
-  </div>
+<b>Action Taken:</b></textarea>
 
-  <div id="adminPanel" class="card hidden">
-    <h3>Admin</h3>
-    <button class="primary" onclick="exportCSV()">Export CSV</button>
+<button class="primary" onclick="saveLog()">Submit Log</button>
+</div>
+
+<!-- FILTERS -->
+<div class="card">
+<input type="date" id="filterDate">
+<select id="filterCompany"></select>
+<button class="primary" onclick="loadLogs()">Apply Filters</button>
+</div>
+
+<!-- HISTORY -->
+<div class="card">
+<h3>History</h3>
+<table>
+<thead>
+<tr>
+<th>Customer</th><th>Phone</th><th>Company</th>
+<th>Disposition</th><th>Status</th><th>Agent</th>
+<th>Date</th><th>Notes</th>
+</tr>
+</thead>
+<tbody id="logTable"></tbody>
+</table>
+</div>
+
+<!-- ADMIN -->
+<div id="adminPanel" class="card hidden">
+<h3>Admin Analytics</h3>
+<div id="analytics"></div>
+<button class="primary" onclick="exportCSV()">Export CSV</button>
+</div>
+
+</div>
+
+<!-- NOTES MODAL -->
+<div id="notesModal" class="modal">
+  <div class="modal-content">
+    <pre id="modalText"></pre>
+    <button class="primary" onclick="closeModal()">Close</button>
   </div>
 </div>
 
 <script>
-/* FIREBASE CONFIG – PASTE REAL VALUES HERE */
 firebase.initializeApp({
-  apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
-  authDomain: "call-logs-tool.firebaseapp.com",
-  projectId: "call-logs-tool"
+  apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
+  authDomain:"call-logs-tool.firebaseapp.com",
+  projectId:"call-logs-tool"
 });
+const auth=firebase.auth();
+const db=firebase.firestore();
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-function login() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
-
-  if (!email.endsWith('@supplylogic.com')) {
-    alert('Only @supplylogic.com emails allowed');
-    return;
-  }
-
-  auth.signInWithEmailAndPassword(email, password)
-    .catch(err => alert(err.message));
+function login(){
+  const email=loginEmail.value.trim();
+  const pass=loginPassword.value;
+  if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
+  auth.signInWithEmailAndPassword(email,pass).catch(e=>alert(e.message));
 }
+function logout(){auth.signOut();}
 
-function logout() {
-  auth.signOut();
-}
-
-auth.onAuthStateChanged(user => {
-  if (user) {
-    document.getElementById('loginPage').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('appHeader').style.display = 'flex';
-    document.getElementById('userEmail').textContent = user.email;
-
-    if (user.email.startsWith('admin')) {
-      document.getElementById('adminPanel').classList.remove('hidden');
-    }
-
+auth.onAuthStateChanged(u=>{
+  if(u){
+    loginPage.classList.add('hidden');
+    app.classList.remove('hidden');
+    appHeader.style.display='flex';
+    userEmail.textContent=u.email;
+    if(u.email.startsWith('admin')) adminPanel.classList.remove('hidden');
     loadLogs();
-  } else {
-    document.getElementById('loginPage').classList.remove('hidden');
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('appHeader').style.display = 'none';
+  }else{
+    loginPage.classList.remove('hidden');
+    app.classList.add('hidden');
+    appHeader.style.display='none';
   }
 });
 
-const companies = {
-  'Shopify': ['Bayada Wear','First Watch Shop','First Watch Swag','KOC','Learfield','Raising Cane\'s Gear','Sevita','The Home Homer','Dave & Buster\'s','Premise Health'],
-  'Marcom': ['American Airlines Credit Union','Applebee\'s','Brinker','Cash America','Choice Hotels','Dave & Buster\'s / Main Event','Denny\'s','Fogo de Chao','IHOP','Noodles & Company','Pei Wei','Pizza Hut','Steak N Shake'],
-  'Marketing Bench': ['Aaron\'s, Inc.','AdventHealth','Baltimore Ravens','Under Armour','Wyndham Hotels & Resorts']
-};
+const companies={
+  "Marketing Bench":[
+"23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth","Agora Marketing Solutions, Inc.",
+"Altium Packaging","AmeriHealth Caritas Services, LLC","Arvest Bank","Baltimore Ravens","Baptist Memorial Health Care Corp",
+"BBI / Outback","Bonefish Grill","Brightview Senior Living","CACI","Cambria Properties",
+"CareFirst Management Company LLC","Carelon Behavioral Health","CarMax","Carrabba's Italian Grill",
+"Chicken Salad Chick","CIS-Knights of Columbus","Compupay","Constellation Energy Generation LLC",
+"Cumberland Pharmaceuticals","D.R. Horton","Delaware North","DS Services of America, Inc.","Equistar Chemicals, LP",
+"Essential Brands dba/Kiddie Academy","First Busey Corporation","First Command","First Watch Restaurants",
+"Fleming's","Fraternal-Knights of Columbus","Georgia Power","Hampton Inn & Suites - Hilton WW",
+"HGI-Food & Beverage","Hilton Brands marKIT Orders","Hilton F&B","HughesNet",
+"Inventory/Coupa-Knights of Columbus","James Hardie Bldg Products","Johns Manville",
+"Keolis Transit America, Inc.","Keplr Vision","KeyBank-WHS","La Quinta by Wyndham Hotels&Resorts",
+"Learfield Communications, LLC","LHC Group, Inc.","LYB Company Store","M&T Bank",
+"MAA Open Arms Program","Magellan Health","Magellan MFLC","Medstar Health","Merry Maids",
+"MileOne Autogroup","Modivcare","Natl. Mentor DBA Sevita","NVR Marketing Services",
+"Paycom Payroll Holdings","Piedmont Healthcare","Pinch A Penny, Inc",
+"Populus Fin. Group DBA ACE Cash Exp","Preferred Hotel Group","Premise Health","Printpack",
+"Qiagen","SAIA Motor Freight Line, LLC","Sales Resource Center","Sick, Inc",
+"Southern Company Gas","Spanish site-Knights of Columbus","Specialty Dental Brands",
+"SSP America","Taub Family Selections","Test Account Training",
+"The Villages Operating Company","Transwestern","Triad Advertising Corp",
+"Trillium Health Resources","UMROI","Under Armour",
+"University of MD Medical System","Webb Mason Commercial",
+"Webb/Mason Company Store","Westmoor Mfg Co",
+"Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
+]};
 
-function loadCompanies() {
-  const sel = document.getElementById('company');
-  sel.innerHTML = '';
-  (companies[tool.value] || []).forEach(c => {
-    const o = document.createElement('option');
-    o.textContent = c;
-    sel.appendChild(o);
+function loadCompanies(){
+  company.innerHTML='';
+  (companies[tool.value]||[]).forEach(c=>{
+    const o=document.createElement('option');
+    o.textContent=c;
+    company.appendChild(o);
   });
 }
 
-function saveLog() {
+function saveLog(){
   db.collection('logs').add({
-    customer: customer.value,
-    phone: phone.value,
-    ref: refId.value,
-    tool: tool.value,
-    company: company.value,
-    disposition: disposition.value,
-    status: status.value,
-    notes: notes.value,
-    agent: auth.currentUser.email,
-    created: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => {
-    customer.value = phone.value = refId.value = notes.value = '';
+    customer:customer.value,
+    phone:phone.value,
+    ref:refId.value,
+    tool:tool.value,
+    company:company.value,
+    disposition:disposition.value,
+    status:status.value,
+    notes:notes.value,
+    agent:auth.currentUser.email,
+    created:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>{
+    customer.value=phone.value=refId.value=notes.value='';
     loadLogs();
-  }).catch(e => alert(e.message));
+  });
 }
 
-function loadLogs() {
-  logTable.innerHTML = '';
-  db.collection('logs').orderBy('created','desc').get().then(snap => {
-    snap.forEach(doc => {
-      const l = doc.data();
-      logTable.innerHTML += `<tr>
-        <td>${l.customer||''}</td>
-        <td>${l.phone||''}</td>
-        <td>${l.company||''}</td>
-        <td>${l.disposition||''}</td>
-        <td>${l.status||''}</td>
-        <td>${l.agent||''}</td>
-        <td>${l.created?.toDate().toLocaleString()||''}</td>
-        <td><button onclick="alert(${JSON.stringify(l.notes)})">View</button></td>
-      </tr>`;
+function loadLogs(){
+  logTable.innerHTML='';
+  db.collection('logs').orderBy('created','desc').get().then(s=>{
+    s.forEach(d=>{
+      const l=d.data();
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+      <td>${l.customer||''}</td>
+      <td>${l.phone||''}</td>
+      <td>${l.company||''}</td>
+      <td>${l.disposition||''}</td>
+      <td>${l.status||''}</td>
+      <td>${l.agent||''}</td>
+      <td>${l.created?.toDate().toLocaleString()||''}</td>
+      <td><button onclick="viewNotes(${JSON.stringify(l.notes||'')})">View</button></td>`;
+      logTable.appendChild(tr);
     });
   });
 }
 
-function exportCSV() {
-  alert('CSV export placeholder – data is in Firestore logs collection');
+function viewNotes(t){
+  modalText.textContent=t;
+  notesModal.style.display='flex';
+}
+function closeModal(){notesModal.style.display='none';}
+
+function exportCSV(){
+  db.collection('logs').get().then(s=>{
+    let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
+    s.forEach(d=>{
+      const l=d.data();
+      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.created?.toDate()},${(l.notes||'').replace(/\n/g,' ')}\n`;
+    });
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download='call_logs.csv';
+    a.click();
+  });
 }
 </script>
-
 </body>
 </html>
