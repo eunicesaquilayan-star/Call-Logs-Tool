@@ -38,8 +38,8 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px}
 
 <!-- LOGIN -->
 <div id="loginPage" class="container">
-  <div class="card" style="max-width:420px;margin:auto;text-align:center">
-    <img src="./images/SL-Logo.png" height="200">
+  <div class="card" style="max-width:420px;margin:auto;text-align:left">
+    <img src="./images/SL-Logo5.png" height="127">
     <h2>Login</h2>
     <input id="loginEmail" type="email" placeholder="name@supplylogic.com">
     <input id="loginPassword" type="password" placeholder="Password">
@@ -272,19 +272,28 @@ function loadLogs(){
 <td>${l.status}</td>
 <td>${l.agent}</td>
 <td>${l.created?.toDate().toLocaleString()||''}</td>
-<td><button onclick="viewNotes(${JSON.stringify(l.notes)})">View</button></td>
+<td><button onclick="viewNotes('${d.id}')">View</button></td>
 <td>${isAdmin?`<button onclick="deleteLog('${d.id}')">Delete</button>`:''}</td>`;
       logTable.appendChild(tr);
     });
   });
 }
 
-function viewNotes(t){
-  modalText.innerHTML=
-    "<b>Concern</b><br><br>"+t.split("Action Taken:")[0].replace("Concern:","")+
-    "<br><br><br><b>Action Taken</b><br><br>"+(t.split("Action Taken:")[1]||"");
-  notesModal.style.display='flex';
+function viewNotes(id){
+  db.collection('logs').doc(id).get().then(doc=>{
+    if(!doc.exists) return;
+    const t = doc.data().notes || "";
+
+    modalText.innerHTML =
+      "<b>Concern</b><br><br>" +
+      t.split("Action Taken:")[0].replace("Concern:","") +
+      "<br><br><br><b>Action Taken</b><br><br>" +
+      (t.split("Action Taken:")[1] || "");
+
+    notesModal.style.display='flex';
+  });
 }
+
 function closeModal(){notesModal.style.display='none';}
 
 function deleteLog(id){
@@ -292,13 +301,13 @@ function deleteLog(id){
     db.collection('logs').doc(id).delete().then(loadLogs);
   }
 }
-
+/* ================= CSV EXPORT ================= */
 function exportCSV(){
   db.collection('logs').get().then(s=>{
     let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
     s.forEach(d=>{
       const l=d.data();
-      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.created?.toDate()},${l.notes.replace(/\n/g,' ')}\n`;
+      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.created?.toDate()||''},"${l.notes.replace(/\n/g,' ')}"\n`;
     });
     const a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -309,4 +318,5 @@ function exportCSV(){
 </script>
 </body>
 </html>
+
 
