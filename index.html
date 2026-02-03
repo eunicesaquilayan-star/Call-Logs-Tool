@@ -18,6 +18,27 @@
   --bg:#f4f6f9;
   --card:#fff;
   --primary:#5b2be0;
+  .toast{
+  position:fixed;
+  top:20px;
+  right:20px;
+  background:#5b2be0;
+  color:#fff;
+  padding:12px 18px;
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+  z-index:9999;
+
+  opacity:0;
+  transform:translateY(-10px);
+  pointer-events:none;
+  transition:opacity .3s ease, transform .3s ease;
+}
+
+.toast.show{
+  opacity:1;
+  transform:translateY(0);
+
 }
 body{margin:0;font-family:Arial;background:var(--bg)}
 header{display:none;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
@@ -98,6 +119,13 @@ Action Taken:
 
 <button class="primary" onclick="saveLog()">Submit Log</button>
 </div>
+  
+<div class="card">
+<h3>My Daily Stats</h3>
+<input type="date" id="agentDay">
+<button class="primary" onclick="loadAgentStats()">View</button>
+<div id="agentStats"></div>
+</div>
 
 <!-- HISTORY -->
 <div class="card">
@@ -117,7 +145,19 @@ Action Taken:
 <!-- ADMIN -->
 <div id="adminPanel" class="card hidden">
 <h3>Admin Analytics</h3>
+  <select id="adminCompanyFilter">
+  <option value="">All Companies</option>
+</select>
+
+<input type="date" id="adminStartDate">
+<input type="date" id="adminEndDate">
+
+<button class="primary" onclick="loadAdminAnalytics()">Run Analytics</button>
+
+<hr>
+<div id="leaderboard"></div>
 <div id="analytics"></div>
+
 <button class="primary" onclick="exportCSV()">Export CSV</button>
 </div>
 
@@ -128,7 +168,23 @@ Action Taken:
   <div class="modal-content">
     <div id="modalText"></div>
     <button class="primary" onclick="closeModal()">Close</button>
-  </div>
+</div>
+</div>
+<!-- LOGIN SUCCESS TOAST -->
+<div id="loginToast" style="
+  position:fixed;
+  top:20px;
+  right:20px;
+  background:#5b2be0;
+  color:#fff;
+  padding:12px 18px;
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+  display:none;
+  z-index:9999;
+">
+  ✅ Login successful
+</div>
 </div>
 
 <script>
@@ -146,19 +202,41 @@ function login(){
   if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
   auth.signInWithEmailAndPassword(email,loginPassword.value).catch(e=>alert(e.message));
 }
+  document.addEventListener('keydown', e=>{
+  if(e.key !== 'Enter') return;
+
+  // LOGIN SCREEN
+  if(!loginPage.classList.contains('hidden')){
+    login();
+    return;
+  }
+
+  // ignore enter inside textarea
+  if(document.activeElement.tagName === 'TEXTAREA') return;
+
+  // AGENT SUBMIT
+  if(!agentForm.classList.contains('hidden')){
+    saveLog();
+  }
+});
+
+
 function logout(){auth.signOut();}
 
 auth.onAuthStateChanged(u=>{
   if(u){
+  showLoginSuccess();
     isAdmin=u.email.startsWith('admin');
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
     userEmail.textContent=u.email;
     if(isAdmin){
-      adminPanel.classList.remove('hidden');
-      agentForm.classList.add('hidden');
-    }
+  loadAdminCompanies();
+  adminPanel.classList.remove('hidden');
+  agentForm.classList.add('hidden');
+  document.querySelector('#agentDay').closest('.card').classList.add('hidden');
+}
     loadLogs();
   }else{
     loginPage.classList.remove('hidden');
@@ -166,6 +244,15 @@ auth.onAuthStateChanged(u=>{
     appHeader.style.display='none';
   }
 });
+  function showLoginSuccess(){
+  const toast = document.getElementById('loginToast');
+  toast.classList.add('show');
+
+  setTimeout(()=>{
+    toast.classList.remove('show');
+  }, 2500);
+}
+
 
 const companies={
   "Shopify":[
@@ -213,12 +300,13 @@ const companies={
 
 function loadCompanies(){
   company.innerHTML='';
-  (companies[tool.value]||[]).forEach(c=>{
+  (companies[tool.value] || []).forEach(c=>{
     const o=document.createElement('option');
     o.value=o.textContent=c;
     company.appendChild(o);
   });
 }
+
 
 function saveLog(){
   const customerEl = document.getElementById('customer');
@@ -245,7 +333,10 @@ function saveLog(){
     status: statusEl.value || 'Open', // 🔒 guaranteed value
     notes: notesEl.value.trim(),
     agent: auth.currentUser.email,
-    created: firebase.firestore.FieldValue.serverTimestamp()
+    created: firebase.firestore.FieldValue.serverTimestamp(),
+    createdDay: new Date().toISOString().slice(0,10), // YYYY-MM-DD
+    createdMonth: new Date().toISOString().slice(0,7) // YYYY-MM
+
   }).then(()=>{
     customerEl.value = '';
     phoneEl.value = '';
@@ -278,6 +369,78 @@ function loadLogs(){
     });
   });
 }
+  function loadAdminAnalytics(){
+  let q = db.collection('logs');
+
+  const company = adminCompanyFilter.value;
+  const start = adminStartDate.value;
+  const end = adminEndDate.value;
+
+  if(company) q = q.where('company','==',company);
+  if(start) q = q.where('createdDay','>=',start);
+  if(end) q = q.where('createdDay','<=',end);
+
+  q.get().then(s=>{
+    const agentStats = {};
+    const dispositionStats = {};
+    const companyStats = {};
+
+    s.forEach(d=>{
+      const l=d.data();
+      const a=l.agent;
+
+      if(!agentStats[a]){
+        agentStats[a]={logs:0,resolved:0};
+      }
+      agentStats[a].logs++;
+      if(l.status==='Resolved') agentStats[a].resolved++;
+
+      dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
+      companyStats[l.company]=(companyStats[l.company]||0)+1;
+    });
+
+    // LEADERBOARD
+    let lb = `<h4>Agent Activity Leaderboard</h4>
+    <table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>% Resolved</th></tr>`;
+    Object.entries(agentStats)
+      .sort((a,b)=>b[1].logs-a[1].logs)
+      .forEach(([a,v])=>{
+        const pct = ((v.resolved/v.logs)*100||0).toFixed(1);
+        lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
+      });
+    lb+='</table>';
+    leaderboard.innerHTML=lb;
+
+    // ANALYTICS
+    analytics.innerHTML = `
+      <h4>Most Used Disposition</h4>
+      ${Object.entries(dispositionStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
+
+      <h4 style="margin-top:15px">Most Used Company</h4>
+      ${Object.entries(companyStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
+    `;
+  });
+}
+  function loadAgentStats(){
+  const day = agentDay.value;
+  if(!day) return alert('Select a date');
+
+  db.collection('logs')
+    .where('agent','==',auth.currentUser.email)
+    .where('createdDay','==',day)
+    .get()
+    .then(s=>{
+      let total=0,res=0;
+      s.forEach(d=>{
+        total++;
+        if(d.data().status==='Resolved') res++;
+      });
+      agentStats.innerHTML =
+        `<b>Total Logs:</b> ${total}<br>
+         <b>Resolved:</b> ${res}`;
+    });
+}
+
 
 function viewNotes(id){
   db.collection('logs').doc(id).get().then(doc=>{
@@ -318,6 +481,7 @@ function exportCSV(){
 </script>
 </body>
 </html>
+
 
 
 
