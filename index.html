@@ -12,11 +12,11 @@
 
 <style>
 :root{
-  --bg:#f1f5f9;
+  --bg:#f3f6fb;
   --card:#ffffff;
   --text:#1f2937;
   --muted:#64748b;
-  --accent:#2563eb;
+  --accent:#5b2be0;
 }
 body.dark{
   --bg:#0f172a;
@@ -32,19 +32,14 @@ body{
   color:var(--text);
 }
 header{
-  display:flex;
+  display:none;
   justify-content:space-between;
   align-items:center;
   padding:10px 20px;
   background:var(--card);
-  box-shadow:0 2px 8px rgba(0,0,0,.1);
+  box-shadow:0 2px 10px rgba(0,0,0,.1);
 }
 header img{height:95px}
-.header-right{
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
 button{
   padding:10px 16px;
   border:none;
@@ -53,19 +48,17 @@ button{
   background:var(--accent);
   color:white;
 }
-button.secondary{
-  background:#64748b;
-}
+button.gray{background:#64748b}
 .container{
   max-width:1300px;
-  margin:20px auto;
+  margin:30px auto;
   padding:0 16px;
 }
 .card{
   background:var(--card);
-  padding:20px;
-  border-radius:12px;
-  box-shadow:0 6px 18px rgba(0,0,0,.08);
+  padding:24px;
+  border-radius:14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
   margin-bottom:20px;
 }
 .grid{
@@ -81,7 +74,7 @@ input,select,textarea{
   border:1px solid #cbd5f5;
   margin-top:4px;
 }
-textarea{min-height:120px}
+textarea{min-height:130px}
 .hidden{display:none}
 table{
   width:100%;
@@ -103,22 +96,22 @@ th{text-align:left;color:var(--muted)}
 }
 .modal-content{
   background:var(--card);
-  padding:20px;
+  padding:24px;
+  border-radius:12px;
   max-width:600px;
   width:90%;
-  border-radius:12px;
 }
 </style>
 </head>
 
 <body>
 
-<header class="hidden" id="appHeader">
+<header id="appHeader">
   <img src="./images/SL-Logo4.png">
-  <div class="header-right">
+  <div>
     <span id="userEmail"></span>
     <button onclick="toggleDark()">🌙</button>
-    <button class="secondary" onclick="logout()">Logout</button>
+    <button class="gray" onclick="logout()">Logout</button>
   </div>
 </header>
 
@@ -127,101 +120,89 @@ th{text-align:left;color:var(--muted)}
 <!-- LOGIN -->
 <div class="card" id="loginCard">
   <h2>Login</h2>
-  <div class="grid">
-    <div>
-      <label>Email</label>
-      <input id="loginEmail" placeholder="name@supplylogic.com">
-    </div>
-    <div>
-      <label>Password (Admin only)</label>
-      <input id="loginPassword" type="password">
-    </div>
-  </div>
-  <br>
+  <label>Email</label>
+  <input id="loginEmail" placeholder="name@supplylogic.com">
+  <br><br>
+  <label>Password</label>
+  <input id="loginPassword" type="password">
+  <br><br>
   <button onclick="login()">Login</button>
 </div>
 
 <!-- AGENT -->
 <div id="agentUI" class="hidden">
+  <div class="card">
+    <h2>Call Log Entry</h2>
+    <form id="logForm">
+      <div class="grid">
+        <div><label>Customer</label><input id="customer" required></div>
+        <div><label>Phone</label><input id="phone"></div>
+        <div><label>Order / User / INV</label><input id="ref"></div>
+        <div>
+          <label>Tool</label>
+          <select id="tool" onchange="loadCompanies()">
+            <option>Shopify</option>
+            <option>Marcom</option>
+            <option>Marketing Bench</option>
+          </select>
+        </div>
+        <div>
+          <label>Company</label>
+          <select id="company"></select>
+        </div>
+        <div>
+          <label>Disposition</label>
+          <select id="disposition">
+            <option>Password Reset</option>
+            <option>Order Entry</option>
+            <option>Order Status / Tracking</option>
+            <option>Impersonate</option>
+          </select>
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="status">
+            <option>Open</option>
+            <option>Follow-up</option>
+            <option>Resolved</option>
+          </select>
+        </div>
+      </div>
 
-<div class="card">
-<h2>Call Log Entry</h2>
-<form id="logForm">
-<div class="grid">
-  <div><label>Customer Name</label><input id="customer" required></div>
-  <div><label>Phone #</label><input id="phone"></div>
-  <div><label>User ID / Order # / INV #</label><input id="ref"></div>
+      <br>
+      <label>Notes</label>
+      <textarea id="notes"><b>Concern:</b>
 
-  <div>
-    <label>Tool</label>
-    <select id="tool" onchange="loadCompanies()" required>
-      <option>Shopify</option>
-      <option>Marcom</option>
-      <option>Marketing Bench</option>
-    </select>
+<b>Action Taken:</b></textarea>
+
+      <br><br>
+      <button type="submit">Save Log</button>
+    </form>
   </div>
 
-  <div>
-    <label>Company</label>
-    <select id="company" required></select>
+  <div class="card">
+    <h2>History</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th><th>Phone</th><th>Company</th>
+          <th>Status</th><th>Notes</th><th>Date</th><th>Agent</th>
+        </tr>
+      </thead>
+      <tbody id="logs"></tbody>
+    </table>
   </div>
-
-  <div>
-    <label>Disposition</label>
-    <select id="disposition">
-      <option>Password Reset</option>
-      <option>Order Entry</option>
-      <option>Order Status / Tracking</option>
-      <option>Impersonate</option>
-    </select>
-  </div>
-
-  <div>
-    <label>Status</label>
-    <select id="status">
-      <option>Open</option>
-      <option>Follow-up</option>
-      <option>Resolved</option>
-    </select>
-  </div>
-</div>
-
-<br>
-<label>Notes</label>
-<textarea id="notes">
-<strong>Concern:</strong>
-
-<strong>Action Taken:</strong>
-</textarea>
-
-<br><br>
-<button type="submit">Save Log</button>
-</form>
-</div>
-
-<div class="card">
-<h2>History</h2>
-<input id="searchCompany" placeholder="Filter by company">
-<input type="date" id="searchDate">
-<table>
-<thead>
-<tr>
-<th>Customer</th><th>Phone</th><th>Disposition</th><th>Company</th>
-<th>Status</th><th>Notes</th><th>Date</th><th>Agent</th>
-</tr>
-</thead>
-<tbody id="logs"></tbody>
-</table>
-</div>
 </div>
 
 <!-- ADMIN -->
 <div id="adminUI" class="hidden">
-<div class="card">
-<h2>Admin Analytics</h2>
-<div id="analytics"></div>
-<button onclick="exportCSV()">Export CSV</button>
-</div>
+  <div class="card">
+    <h2>Agent Activity Leaderboard</h2>
+    <table>
+      <thead><tr><th>Rank</th><th>Agent</th><th>Logs</th></tr></thead>
+      <tbody id="leaderboard"></tbody>
+    </table>
+  </div>
 </div>
 
 </div>
@@ -230,12 +211,12 @@ th{text-align:left;color:var(--muted)}
 <div class="modal" id="modal">
   <div class="modal-content">
     <div id="modalText"></div><br>
-    <button onclick="closeModal()">Close</button>
+    <button onclick="modal.style.display='none'">Close</button>
   </div>
 </div>
 
 <script>
-/* 🔥 FIREBASE INIT */
+/* FIREBASE */
 firebase.initializeApp({
   apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain: "call-logs-tool.firebaseapp.com",
@@ -245,34 +226,30 @@ firebase.initializeApp({
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* DARK MODE */
-function toggleDark(){
-  document.body.classList.toggle("dark");
-}
+/* ADMIN LIST */
+const ADMIN_EMAILS = [
+  "admin@supplylogic.com"
+];
 
 /* LOGIN */
 function login(){
   const email = loginEmail.value;
   const pass = loginPassword.value;
   if(!email.endsWith("@supplylogic.com")) return alert("Access restricted");
-
-  if(pass){
-    auth.signInWithEmailAndPassword(email, pass);
-  }else{
-    auth.signInWithEmailAndPassword(email, "agent-temp-pass");
-  }
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e=>alert(e.message));
 }
 
 /* AUTH STATE */
 auth.onAuthStateChanged(user=>{
   if(!user) return;
   loginCard.classList.add("hidden");
-  appHeader.classList.remove("hidden");
+  appHeader.style.display="flex";
   userEmail.textContent = user.email;
 
-  if(user.email.includes("admin")){
+  if(ADMIN_EMAILS.includes(user.email)){
     adminUI.classList.remove("hidden");
-    loadAnalytics();
+    loadLeaderboard();
   }else{
     agentUI.classList.remove("hidden");
     loadLogs();
@@ -280,34 +257,18 @@ auth.onAuthStateChanged(user=>{
 });
 
 /* LOGOUT */
-function logout(){
-  auth.signOut();
-  location.reload();
-}
+function logout(){auth.signOut().then(()=>location.reload());}
 
 /* COMPANIES */
-const companies={ /* trimmed for brevity in explanation, full list kept */
-  "Shopify":[
-    "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
-    "Raising Cane's Gear","Sevita","The Home Homer","Dave & Buster’s","Premise Health"
-  ],
-  "Marcom":[
-    "American Airlines Credit Union","Applebee's","Brinker","Cash America",
-    "Choice Hotels","Dave & Buster's / Main Event","Denny's","Fogo de Chao","IHOP",
-    "Noodles & Company","Pei Wei","Pizza Hut","Zaxby's"
-  ],
-  "Marketing Bench":[
-    "23 Restaurant Services","Aaron's, Inc.","AdventHealth","Baltimore Ravens",
-    "Under Armour","Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
-  ]
+const companies={
+  Shopify:["Bayada Wear","First Watch Shop","Premise Health"],
+  Marcom:["Applebee's","IHOP","Zaxby's"],
+  "Marketing Bench":["Under Armour","Wyndham Hotels&Resorts, Inc."]
 };
-
 function loadCompanies(){
   company.innerHTML="";
   companies[tool.value].forEach(c=>{
-    const o=document.createElement("option");
-    o.textContent=c;
-    company.appendChild(o);
+    let o=document.createElement("option");o.textContent=c;company.appendChild(o);
   });
 }
 loadCompanies();
@@ -318,10 +279,7 @@ logForm.addEventListener("submit",e=>{
   db.collection("logs").add({
     customer:customer.value,
     phone:phone.value,
-    ref:ref.value,
-    tool:tool.value,
     company:company.value,
-    disposition:disposition.value,
     status:status.value,
     notes:notes.value,
     agent:auth.currentUser.email,
@@ -333,54 +291,41 @@ logForm.addEventListener("submit",e=>{
 
 /* LOAD LOGS */
 function loadLogs(){
-  db.collection("logs").orderBy("date","desc")
-  .onSnapshot(snap=>{
+  db.collection("logs").orderBy("date","desc").onSnapshot(s=>{
     logs.innerHTML="";
-    snap.forEach(d=>{
-      const l=d.data();
-      logs.innerHTML+=`
-      <tr>
-        <td>${l.customer}</td>
-        <td>${l.phone}</td>
-        <td>${l.disposition}</td>
-        <td>${l.company}</td>
-        <td>${l.status}</td>
-        <td><button onclick="viewNotes(\`${l.notes}\`)">View</button></td>
-        <td>${l.date.toDate().toLocaleString()}</td>
-        <td>${l.agent}</td>
-      </tr>`;
-    });
-  });
-}
-
-/* NOTES MODAL */
-function viewNotes(t){
-  modal.style.display="flex";
-  modalText.innerHTML=t;
-}
-function closeModal(){modal.style.display="none"}
-
-/* ADMIN ANALYTICS */
-function loadAnalytics(){
-  db.collection("logs").get().then(s=>{
-    analytics.innerHTML=`Total Logs: ${s.size}`;
-  });
-}
-
-/* CSV */
-function exportCSV(){
-  db.collection("logs").get().then(s=>{
-    let csv="Customer,Phone,Company,Disposition,Status,Agent,Date\n";
     s.forEach(d=>{
       const l=d.data();
-      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.date.toDate()}\n`;
+      logs.innerHTML+=`
+        <tr>
+          <td>${l.customer}</td>
+          <td>${l.phone}</td>
+          <td>${l.company}</td>
+          <td>${l.status}</td>
+          <td><button onclick="modal.style.display='flex';modalText.innerHTML=\`${l.notes}\`">View</button></td>
+          <td>${l.date.toDate().toLocaleString()}</td>
+          <td>${l.agent}</td>
+        </tr>`;
     });
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([csv]));
-    a.download="call_logs.csv";
-    a.click();
   });
 }
+
+/* LEADERBOARD */
+function loadLeaderboard(){
+  db.collection("logs").get().then(s=>{
+    const count={};
+    s.forEach(d=>{
+      const a=d.data().agent;
+      count[a]=(count[a]||0)+1;
+    });
+    leaderboard.innerHTML="";
+    Object.entries(count).sort((a,b)=>b[1]-a[1])
+      .forEach((e,i)=>{
+        leaderboard.innerHTML+=`<tr><td>${i+1}</td><td>${e[0]}</td><td>${e[1]}</td></tr>`;
+      });
+  });
+}
+
+function toggleDark(){document.body.classList.toggle("dark");}
 </script>
 </body>
 </html>
