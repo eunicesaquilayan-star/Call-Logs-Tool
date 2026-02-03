@@ -2,102 +2,236 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Call Logs Tool</title>
+<title>Supply Logic Call Logs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
 :root{
- --bg:#f4f6f9;--card:#fff;--text:#212529;--border:#dee2e6;--primary:#0d6efd
+  --bg:#f1f5f9;
+  --card:#ffffff;
+  --text:#1f2937;
+  --muted:#64748b;
+  --accent:#2563eb;
 }
 body.dark{
- --bg:#121212;--card:#1e1e1e;--text:#e9ecef;--border:#2a2a2a
+  --bg:#0f172a;
+  --card:#1e293b;
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+  --accent:#38bdf8;
 }
-body{font-family:Arial;background:var(--bg);color:var(--text);margin:0}
-.container{max-width:1600px;margin:30px auto;background:var(--card);padding:30px;border-radius:12px}
-header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:15px}
-button{background:var(--primary);color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
-input,select,textarea{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid var(--border)}
-textarea{min-height:220px}
+body{
+  margin:0;
+  font-family:system-ui, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 20px;
+  background:var(--card);
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+header img{height:95px}
+.header-right{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+button{
+  padding:10px 16px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:var(--accent);
+  color:white;
+}
+button.secondary{
+  background:#64748b;
+}
+.container{
+  max-width:1300px;
+  margin:20px auto;
+  padding:0 16px;
+}
+.card{
+  background:var(--card);
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 6px 18px rgba(0,0,0,.08);
+  margin-bottom:20px;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:14px;
+}
+label{font-size:13px;color:var(--muted)}
+input,select,textarea{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #cbd5f5;
+  margin-top:4px;
+}
+textarea{min-height:120px}
 .hidden{display:none}
-table{width:100%;border-collapse:collapse;margin-top:20px}
-th,td{border:1px solid var(--border);padding:10px}
-.note-box{white-space:pre-wrap}
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+th,td{
+  padding:10px;
+  border-bottom:1px solid #e2e8f0;
+  font-size:14px;
+}
+th{text-align:left;color:var(--muted)}
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+.modal-content{
+  background:var(--card);
+  padding:20px;
+  max-width:600px;
+  width:90%;
+  border-radius:12px;
+}
 </style>
 </head>
 
 <body>
 
-<div class="container">
-<link rel="icon" href="data:,">
-<header>
- <img src="./images/SL-Logo4.png" height="95">
- <div>
-  <button onclick="toggleTheme()">🌙 / ☀️</button>
-  <button id="logoutBtn" class="hidden" onclick="logout()">Logout</button>
- </div>
+<header class="hidden" id="appHeader">
+  <img src="./images/SL-Logo4.png">
+  <div class="header-right">
+    <span id="userEmail"></span>
+    <button onclick="toggleDark()">🌙</button>
+    <button class="secondary" onclick="logout()">Logout</button>
+  </div>
 </header>
 
+<div class="container">
+
 <!-- LOGIN -->
-<div id="loginSection">
- <h3>Login</h3>
- <input id="email" placeholder="Email">
- <input id="password" type="password" placeholder="Admin Password (admins only)">
- <button onclick="login()">Login</button>
+<div class="card" id="loginCard">
+  <h2>Login</h2>
+  <div class="grid">
+    <div>
+      <label>Email</label>
+      <input id="loginEmail" placeholder="name@supplylogic.com">
+    </div>
+    <div>
+      <label>Password (Admin only)</label>
+      <input id="loginPassword" type="password">
+    </div>
+  </div>
+  <br>
+  <button onclick="login()">Login</button>
 </div>
 
 <!-- AGENT -->
-<div id="agentSection" class="hidden">
+<div id="agentUI" class="hidden">
 
-<h3>New Call Log</h3>
+<div class="card">
+<h2>Call Log Entry</h2>
+<form id="logForm">
+<div class="grid">
+  <div><label>Customer Name</label><input id="customer" required></div>
+  <div><label>Phone #</label><input id="phone"></div>
+  <div><label>User ID / Order # / INV #</label><input id="ref"></div>
 
-<select id="tool" onchange="loadCompanies()">
- <option value="">Select Tool *</option>
- <option value="Shopify">Shopify</option>
- <option value="Marcom">Marcom</option>
- <option value="Marketing Bench">Marketing Bench</option>
-</select>
+  <div>
+    <label>Tool</label>
+    <select id="tool" onchange="loadCompanies()" required>
+      <option>Shopify</option>
+      <option>Marcom</option>
+      <option>Marketing Bench</option>
+    </select>
+  </div>
 
-<select id="company" disabled>
- <option value="">Select Company *</option>
-</select>
+  <div>
+    <label>Company</label>
+    <select id="company" required></select>
+  </div>
 
-<input id="name" placeholder="Customer Name">
-<input id="phone" placeholder="Phone">
-<input id="ref" placeholder="User ID / Order # / Inv #">
+  <div>
+    <label>Disposition</label>
+    <select id="disposition">
+      <option>Password Reset</option>
+      <option>Order Entry</option>
+      <option>Order Status / Tracking</option>
+      <option>Impersonate</option>
+    </select>
+  </div>
 
-<select id="disposition">
- <option value="">Disposition *</option>
- <option>Password Reset</option>
- <option>Order Entry</option>
- <option>Order Status</option>
- <option>General Inquiry</option>
-</select>
+  <div>
+    <label>Status</label>
+    <select id="status">
+      <option>Open</option>
+      <option>Follow-up</option>
+      <option>Resolved</option>
+    </select>
+  </div>
+</div>
 
-<select id="status">
- <option value="Open">Open</option>
- <option value="Follow Up">Follow Up</option>
- <option value="Resolved">Resolved</option>
-</select>
+<br>
+<label>Notes</label>
+<textarea id="notes">
+<strong>Concern:</strong>
 
-<textarea id="notes">CONCERN:
+<strong>Action Taken:</strong>
+</textarea>
 
-ACTION TAKEN:</textarea>
+<br><br>
+<button type="submit">Save Log</button>
+</form>
+</div>
 
-<button onclick="submitLog()">Submit Log</button>
-
+<div class="card">
+<h2>History</h2>
+<input id="searchCompany" placeholder="Filter by company">
+<input type="date" id="searchDate">
 <table>
 <thead>
 <tr>
-<th>Agent</th><th>Company</th><th>Disposition</th><th>Status</th><th>Notes</th><th>Date</th>
+<th>Customer</th><th>Phone</th><th>Disposition</th><th>Company</th>
+<th>Status</th><th>Notes</th><th>Date</th><th>Agent</th>
 </tr>
 </thead>
-<tbody id="agentLogs"></tbody>
+<tbody id="logs"></tbody>
 </table>
+</div>
+</div>
 
+<!-- ADMIN -->
+<div id="adminUI" class="hidden">
+<div class="card">
+<h2>Admin Analytics</h2>
+<div id="analytics"></div>
+<button onclick="exportCSV()">Export CSV</button>
+</div>
+</div>
+
+</div>
+
+<!-- NOTES MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <div id="modalText"></div><br>
+    <button onclick="closeModal()">Close</button>
+  </div>
 </div>
 
 <script>
@@ -108,150 +242,145 @@ firebase.initializeApp({
   projectId: "call-logs-tool"
 });
 
-const db = firebase.firestore();
 const auth = firebase.auth();
+const db = firebase.firestore();
 
-/* 🔗 DOM ELEMENTS */
-const loginSection = document.getElementById("loginSection");
-const agentSection = document.getElementById("agentSection");
-const logoutBtn = document.getElementById("logoutBtn");
-
-const emailInput = document.getElementById("email");      // ✅ FIX
-const passwordInput = document.getElementById("password"); // ✅ FIX
-
-const tool = document.getElementById("tool");
-const company = document.getElementById("company");
-const disposition = document.getElementById("disposition");
-const status = document.getElementById("status");
-const refInput = document.getElementById("ref");
-const notes = document.getElementById("notes");
-const agentLogs = document.getElementById("agentLogs");
-
-/* STATE */
-let user = sessionStorage.getItem("user") || "";
-let startTime = Date.now();
-let authReady = false;
-
-/* 🔐 SIGN IN (REQUIRED FOR FIRESTORE RULES) */
-auth.signInAnonymously()
-  .then(() => console.log("✅ Anonymous auth started"))
-  .catch(err => console.error("❌ Auth error:", err));
-
-auth.onAuthStateChanged(u => {
-  if (u) authReady = true;
-});
-
-function toggleTheme(){
+/* DARK MODE */
+function toggleDark(){
   document.body.classList.toggle("dark");
 }
 
 /* LOGIN */
 function login(){
-  const u = emailInput.value.trim();
+  const email = loginEmail.value;
+  const pass = loginPassword.value;
+  if(!email.endsWith("@supplylogic.com")) return alert("Access restricted");
 
-  if (!u) {
-    alert("Email required");
-    return;
+  if(pass){
+    auth.signInWithEmailAndPassword(email, pass);
+  }else{
+    auth.signInWithEmailAndPassword(email, "agent-temp-pass");
   }
-
-  user = u;
-  sessionStorage.setItem("user", user);
-  startTime = Date.now();
-
-  loginSection.classList.add("hidden");
-  agentSection.classList.remove("hidden");
-  logoutBtn.classList.remove("hidden");
-
-  loadAgentLogs();
 }
+
+/* AUTH STATE */
+auth.onAuthStateChanged(user=>{
+  if(!user) return;
+  loginCard.classList.add("hidden");
+  appHeader.classList.remove("hidden");
+  userEmail.textContent = user.email;
+
+  if(user.email.includes("admin")){
+    adminUI.classList.remove("hidden");
+    loadAnalytics();
+  }else{
+    agentUI.classList.remove("hidden");
+    loadLogs();
+  }
+});
 
 /* LOGOUT */
 function logout(){
-  sessionStorage.clear();
+  auth.signOut();
   location.reload();
 }
 
-/* AUTO RESTORE SESSION */
-if(user){
-  loginSection.classList.add("hidden");
-  agentSection.classList.remove("hidden");
-  logoutBtn.classList.remove("hidden");
-  loadAgentLogs();
-}
-
-/* TOOL → COMPANY */
-const companyMap = {
- Shopify:["Bayada Wear","First Watch Shop","First Watch Swag"],
- Marcom:["Cash America","Choice Hotels","Dave & Buster's / Main Event"],
- "Marketing Bench":["23 Restaurant Services","Aaron's, Inc.","Access Marketing Services"]
+/* COMPANIES */
+const companies={ /* trimmed for brevity in explanation, full list kept */
+  "Shopify":[
+    "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
+    "Raising Cane's Gear","Sevita","The Home Homer","Dave & Buster’s","Premise Health"
+  ],
+  "Marcom":[
+    "American Airlines Credit Union","Applebee's","Brinker","Cash America",
+    "Choice Hotels","Dave & Buster's / Main Event","Denny's","Fogo de Chao","IHOP",
+    "Noodles & Company","Pei Wei","Pizza Hut","Zaxby's"
+  ],
+  "Marketing Bench":[
+    "23 Restaurant Services","Aaron's, Inc.","AdventHealth","Baltimore Ravens",
+    "Under Armour","Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
+  ]
 };
 
 function loadCompanies(){
- company.innerHTML='<option value="">Select Company *</option>';
- company.disabled=true;
- (companyMap[tool.value] || []).forEach(c=>{
-  const o=document.createElement("option");
-  o.value=c;
-  o.textContent=c;
-  company.appendChild(o);
- });
- company.disabled=false;
-}
-
-/* SUBMIT LOG */
-async function submitLog(){
-  if (!authReady) {
-    alert("Auth still initializing. Please wait 1–2 seconds.");
-    return;
-  }
-
-  if(!tool.value || !company.value || !disposition.value){
-    alert("Please complete required fields");
-    return;
-  }
-
-  const minutes = ((Date.now() - startTime) / 60000).toFixed(2);
-
-  await db.collection("logs").add({
-    agent: user,
-    tool: tool.value,
-    company: company.value,
-    disposition: disposition.value,
-    status: status.value,
-    ref: refInput.value || "",
-    notes: notes.value || "",
-    minutes: Number(minutes),
-    created: firebase.firestore.FieldValue.serverTimestamp()
+  company.innerHTML="";
+  companies[tool.value].forEach(c=>{
+    const o=document.createElement("option");
+    o.textContent=c;
+    company.appendChild(o);
   });
+}
+loadCompanies();
 
-  alert("✅ Log saved successfully");
-  startTime = Date.now();
-  refInput.value = "";
+/* SAVE LOG */
+logForm.addEventListener("submit",e=>{
+  e.preventDefault();
+  db.collection("logs").add({
+    customer:customer.value,
+    phone:phone.value,
+    ref:ref.value,
+    tool:tool.value,
+    company:company.value,
+    disposition:disposition.value,
+    status:status.value,
+    notes:notes.value,
+    agent:auth.currentUser.email,
+    date:new Date()
+  });
+  logForm.reset();
+  loadCompanies();
+});
+
+/* LOAD LOGS */
+function loadLogs(){
+  db.collection("logs").orderBy("date","desc")
+  .onSnapshot(snap=>{
+    logs.innerHTML="";
+    snap.forEach(d=>{
+      const l=d.data();
+      logs.innerHTML+=`
+      <tr>
+        <td>${l.customer}</td>
+        <td>${l.phone}</td>
+        <td>${l.disposition}</td>
+        <td>${l.company}</td>
+        <td>${l.status}</td>
+        <td><button onclick="viewNotes(\`${l.notes}\`)">View</button></td>
+        <td>${l.date.toDate().toLocaleString()}</td>
+        <td>${l.agent}</td>
+      </tr>`;
+    });
+  });
 }
 
-/* LOAD AGENT LOGS */
-function loadAgentLogs(){
-  db.collection("logs")
-    .where("agent", "==", user)
-    .orderBy("created", "desc")
-    .onSnapshot(snap => {
-      agentLogs.innerHTML = "";
-      snap.forEach(doc => {
-        const d = doc.data();
-        agentLogs.innerHTML += `
-          <tr>
-            <td>${d.agent}</td>
-            <td>${d.company}</td>
-            <td>${d.disposition}</td>
-            <td>${d.status}</td>
-            <td class="note-box">${d.notes}</td>
-            <td>${d.created ? d.created.toDate().toLocaleString() : ""}</td>
-          </tr>`;
-      });
+/* NOTES MODAL */
+function viewNotes(t){
+  modal.style.display="flex";
+  modalText.innerHTML=t;
+}
+function closeModal(){modal.style.display="none"}
+
+/* ADMIN ANALYTICS */
+function loadAnalytics(){
+  db.collection("logs").get().then(s=>{
+    analytics.innerHTML=`Total Logs: ${s.size}`;
+  });
+}
+
+/* CSV */
+function exportCSV(){
+  db.collection("logs").get().then(s=>{
+    let csv="Customer,Phone,Company,Disposition,Status,Agent,Date\n";
+    s.forEach(d=>{
+      const l=d.data();
+      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.date.toDate()}\n`;
     });
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([csv]));
+    a.download="call_logs.csv";
+    a.click();
+  });
 }
 </script>
-
 </body>
 </html>
-
