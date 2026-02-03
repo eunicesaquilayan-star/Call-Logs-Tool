@@ -1,331 +1,114 @@
+<!-- FULL WORKING VERSION: Firebase Auth + Firestore + Login Header Image -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Supply Logic Call Logs</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Call Logs Tool – Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<style>
-:root{
-  --bg:#f3f6fb;
-  --card:#ffffff;
-  --text:#1f2937;
-  --muted:#64748b;
-  --accent:#5b2be0;
-}
-body.dark{
-  --bg:#0f172a;
-  --card:#1e293b;
-  --text:#e5e7eb;
-  --muted:#94a3b8;
-  --accent:#38bdf8;
-}
-body{
-  margin:0;
-  font-family:system-ui, sans-serif;
-  background:var(--bg);
-  color:var(--text);
-}
-header{
-  display:none;
-  justify-content:space-between;
-  align-items:center;
-  padding:10px 20px;
-  background:var(--card);
-  box-shadow:0 2px 10px rgba(0,0,0,.1);
-}
-header img{height:95px}
-button{
-  padding:10px 16px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  background:var(--accent);
-  color:white;
-}
-button.gray{background:#64748b}
-.container{
-  max-width:1300px;
-  margin:30px auto;
-  padding:0 16px;
-}
-.card{
-  background:var(--card);
-  padding:24px;
-  border-radius:14px;
-  box-shadow:0 8px 24px rgba(0,0,0,.08);
-  margin-bottom:20px;
-}
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:14px;
-}
-label{font-size:13px;color:var(--muted)}
-input,select,textarea{
-  width:100%;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #cbd5f5;
-  margin-top:4px;
-}
-textarea{min-height:130px}
-.hidden{display:none}
-table{
-  width:100%;
-  border-collapse:collapse;
-}
-th,td{
-  padding:10px;
-  border-bottom:1px solid #e2e8f0;
-  font-size:14px;
-}
-th{text-align:left;color:var(--muted)}
-.modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.5);
-  display:none;
-  align-items:center;
-  justify-content:center;
-}
-.modal-content{
-  background:var(--card);
-  padding:24px;
-  border-radius:12px;
-  max-width:600px;
-  width:90%;
-}
-</style>
+    // 🔥 FIREBASE CONFIG (REPLACE WITH YOURS)
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "XXXX",
+      appId: "XXXX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.login = async function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // ✅ SAVE LOGIN EVENT TO FIRESTORE
+        await addDoc(collection(db, "logs"), {
+          agent: email,
+          role: email.includes("admin") ? "admin" : "agent",
+          tool: "Login",
+          created: serverTimestamp()
+        });
+
+        alert("Login successful!");
+        window.location.href = "dashboard.html";
+      } catch (error) {
+        alert(error.message);
+        console.error(error);
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .login-card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      width: 360px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+
+    .header-img {
+      width: 100%;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #6c4cff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="login-card">
+    <!-- 🖼 HEADER IMAGE -->
+    <img src="header.png" class="header-img" alt="Supply Logic" />
 
-<header id="appHeader">
-  <img src="./images/SL-Logo4.png">
-  <div>
-    <span id="userEmail"></span>
-    <button onclick="toggleDark()">🌙</button>
-    <button class="gray" onclick="logout()">Logout</button>
+    <h2>Login</h2>
+    <input id="email" type="email" placeholder="name@supplylogic.com" />
+    <input id="password" type="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+
+    <p style="margin-top:10px;font-size:12px;color:#666">
+      Agents: <b>SL@123</b><br/>
+      Admin: <b>SLadmin@123</b>
+    </p>
   </div>
-</header>
-
-<div class="container">
-
-<!-- LOGIN -->
-<div class="card" id="loginCard">
-  <h2>Login</h2>
-  <label>Email</label>
-  <input id="loginEmail" placeholder="name@supplylogic.com">
-  <br><br>
-  <label>Password</label>
-  <input id="loginPassword" type="password">
-  <br><br>
-  <button onclick="login()">Login</button>
-</div>
-
-<!-- AGENT -->
-<div id="agentUI" class="hidden">
-  <div class="card">
-    <h2>Call Log Entry</h2>
-    <form id="logForm">
-      <div class="grid">
-        <div><label>Customer</label><input id="customer" required></div>
-        <div><label>Phone</label><input id="phone"></div>
-        <div><label>Order / User / INV</label><input id="ref"></div>
-        <div>
-          <label>Tool</label>
-          <select id="tool" onchange="loadCompanies()">
-            <option>Shopify</option>
-            <option>Marcom</option>
-            <option>Marketing Bench</option>
-          </select>
-        </div>
-        <div>
-          <label>Company</label>
-          <select id="company"></select>
-        </div>
-        <div>
-          <label>Disposition</label>
-          <select id="disposition">
-            <option>Password Reset</option>
-            <option>Order Entry</option>
-            <option>Order Status / Tracking</option>
-            <option>Impersonate</option>
-          </select>
-        </div>
-        <div>
-          <label>Status</label>
-          <select id="status">
-            <option>Open</option>
-            <option>Follow-up</option>
-            <option>Resolved</option>
-          </select>
-        </div>
-      </div>
-
-      <br>
-      <label>Notes</label>
-      <textarea id="notes"><b>Concern:</b>
-
-<b>Action Taken:</b></textarea>
-
-      <br><br>
-      <button type="submit">Save Log</button>
-    </form>
-  </div>
-
-  <div class="card">
-    <h2>History</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Customer</th><th>Phone</th><th>Company</th>
-          <th>Status</th><th>Notes</th><th>Date</th><th>Agent</th>
-        </tr>
-      </thead>
-      <tbody id="logs"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ADMIN -->
-<div id="adminUI" class="hidden">
-  <div class="card">
-    <h2>Agent Activity Leaderboard</h2>
-    <table>
-      <thead><tr><th>Rank</th><th>Agent</th><th>Logs</th></tr></thead>
-      <tbody id="leaderboard"></tbody>
-    </table>
-  </div>
-</div>
-
-</div>
-
-<!-- NOTES MODAL -->
-<div class="modal" id="modal">
-  <div class="modal-content">
-    <div id="modalText"></div><br>
-    <button onclick="modal.style.display='none'">Close</button>
-  </div>
-</div>
-
-<script>
-/* FIREBASE */
-firebase.initializeApp({
-  apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
-  authDomain: "call-logs-tool.firebaseapp.com",
-  projectId: "call-logs-tool"
-});
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-/* ADMIN LIST */
-const ADMIN_EMAILS = [
-  "admin@supplylogic.com"
-];
-
-/* LOGIN */
-function login(){
-  const email = loginEmail.value;
-  const pass = loginPassword.value;
-  if(!email.endsWith("@supplylogic.com")) return alert("Access restricted");
-  auth.signInWithEmailAndPassword(email, pass)
-    .catch(e=>alert(e.message));
-}
-
-/* AUTH STATE */
-auth.onAuthStateChanged(user=>{
-  if(!user) return;
-  loginCard.classList.add("hidden");
-  appHeader.style.display="flex";
-  userEmail.textContent = user.email;
-
-  if(ADMIN_EMAILS.includes(user.email)){
-    adminUI.classList.remove("hidden");
-    loadLeaderboard();
-  }else{
-    agentUI.classList.remove("hidden");
-    loadLogs();
-  }
-});
-
-/* LOGOUT */
-function logout(){auth.signOut().then(()=>location.reload());}
-
-/* COMPANIES */
-const companies={
-  Shopify:["Bayada Wear","First Watch Shop","Premise Health"],
-  Marcom:["Applebee's","IHOP","Zaxby's"],
-  "Marketing Bench":["Under Armour","Wyndham Hotels&Resorts, Inc."]
-};
-function loadCompanies(){
-  company.innerHTML="";
-  companies[tool.value].forEach(c=>{
-    let o=document.createElement("option");o.textContent=c;company.appendChild(o);
-  });
-}
-loadCompanies();
-
-/* SAVE LOG */
-logForm.addEventListener("submit",e=>{
-  e.preventDefault();
-  db.collection("logs").add({
-    customer:customer.value,
-    phone:phone.value,
-    company:company.value,
-    status:status.value,
-    notes:notes.value,
-    agent:auth.currentUser.email,
-    date:new Date()
-  });
-  logForm.reset();
-  loadCompanies();
-});
-
-/* LOAD LOGS */
-function loadLogs(){
-  db.collection("logs").orderBy("date","desc").onSnapshot(s=>{
-    logs.innerHTML="";
-    s.forEach(d=>{
-      const l=d.data();
-      logs.innerHTML+=`
-        <tr>
-          <td>${l.customer}</td>
-          <td>${l.phone}</td>
-          <td>${l.company}</td>
-          <td>${l.status}</td>
-          <td><button onclick="modal.style.display='flex';modalText.innerHTML=\`${l.notes}\`">View</button></td>
-          <td>${l.date.toDate().toLocaleString()}</td>
-          <td>${l.agent}</td>
-        </tr>`;
-    });
-  });
-}
-
-/* LEADERBOARD */
-function loadLeaderboard(){
-  db.collection("logs").get().then(s=>{
-    const count={};
-    s.forEach(d=>{
-      const a=d.data().agent;
-      count[a]=(count[a]||0)+1;
-    });
-    leaderboard.innerHTML="";
-    Object.entries(count).sort((a,b)=>b[1]-a[1])
-      .forEach((e,i)=>{
-        leaderboard.innerHTML+=`<tr><td>${i+1}</td><td>${e[0]}</td><td>${e[1]}</td></tr>`;
-      });
-  });
-}
-
-function toggleDark(){document.body.classList.toggle("dark");}
-</script>
 </body>
 </html>
