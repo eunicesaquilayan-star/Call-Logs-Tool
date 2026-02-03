@@ -165,32 +165,48 @@ auth.onAuthStateChanged(u=>{
 });
 
 const companies={
+  "Shopify":[
+    "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
+    "Raising Cane's Gear","Sevita","The Home Homer",
+    "Dave & Buster's","Premise Health"
+  ],
+  "Marcom":[
+    "American Airlines Credit Union","Applebee's","Brinker","Cash America",
+    "Choice Hotels","Dave & Buster's / Main Event","Denny's",
+    "Fogo de Chao","IHOP","Noodles & Company","Pei Wei",
+    "Pizza Hut","Steak N Shake"
+  ],
   "Marketing Bench":[
-"23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth","Agora Marketing Solutions, Inc.",
-"Altium Packaging","AmeriHealth Caritas Services, LLC","Arvest Bank","Baltimore Ravens","Baptist Memorial Health Care Corp",
-"BBI / Outback","Bonefish Grill","Brightview Senior Living","CACI","Cambria Properties",
-"CareFirst Management Company LLC","Carelon Behavioral Health","CarMax","Carrabba's Italian Grill",
-"Chicken Salad Chick","CIS-Knights of Columbus","Compupay","Constellation Energy Generation LLC",
-"Cumberland Pharmaceuticals","D.R. Horton","Delaware North","DS Services of America, Inc.","Equistar Chemicals, LP",
-"Essential Brands dba/Kiddie Academy","First Busey Corporation","First Command","First Watch Restaurants",
-"Fleming's","Fraternal-Knights of Columbus","Georgia Power","Hampton Inn & Suites - Hilton WW",
-"HGI-Food & Beverage","Hilton Brands marKIT Orders","Hilton F&B","HughesNet",
-"Inventory/Coupa-Knights of Columbus","James Hardie Bldg Products","Johns Manville",
-"Keolis Transit America, Inc.","Keplr Vision","KeyBank-WHS","La Quinta by Wyndham Hotels&Resorts",
-"Learfield Communications, LLC","LHC Group, Inc.","LYB Company Store","M&T Bank",
-"MAA Open Arms Program","Magellan Health","Magellan MFLC","Medstar Health","Merry Maids",
-"MileOne Autogroup","Modivcare","Natl. Mentor DBA Sevita","NVR Marketing Services",
-"Paycom Payroll Holdings","Piedmont Healthcare","Pinch A Penny, Inc",
-"Populus Fin. Group DBA ACE Cash Exp","Preferred Hotel Group","Premise Health","Printpack",
-"Qiagen","SAIA Motor Freight Line, LLC","Sales Resource Center","Sick, Inc",
-"Southern Company Gas","Spanish site-Knights of Columbus","Specialty Dental Brands",
-"SSP America","Taub Family Selections","Test Account Training",
-"The Villages Operating Company","Transwestern","Triad Advertising Corp",
-"Trillium Health Resources","UMROI","Under Armour",
-"University of MD Medical System","Webb Mason Commercial",
-"Webb/Mason Company Store","Westmoor Mfg Co",
-"Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
-]};
+    "23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth",
+    "Agora Marketing Solutions, Inc.","Altium Packaging","AmeriHealth Caritas Services, LLC",
+    "Arvest Bank","Baltimore Ravens","Baptist Memorial Health Care Corp",
+    "BBI / Outback","Bonefish Grill","Brightview Senior Living","CACI","Cambria Properties",
+    "CareFirst Management Company LLC","Carelon Behavioral Health","CarMax",
+    "Carrabba's Italian Grill","Chicken Salad Chick","CIS-Knights of Columbus",
+    "Compupay","Constellation Energy Generation LLC","Cumberland Pharmaceuticals",
+    "D.R. Horton","Delaware North","DS Services of America, Inc.","Equistar Chemicals, LP",
+    "Essential Brands dba/Kiddie Academy","First Busey Corporation","First Command",
+    "First Watch Restaurants","Fleming's","Fraternal-Knights of Columbus","Georgia Power",
+    "Hampton Inn & Suites - Hilton WW","HGI-Food & Beverage","Hilton Brands marKIT Orders",
+    "Hilton F&B","HughesNet","Inventory/Coupa-Knights of Columbus",
+    "James Hardie Bldg Products","Johns Manville","Keolis Transit America, Inc.",
+    "Keplr Vision","KeyBank-WHS","La Quinta by Wyndham Hotels&Resorts",
+    "Learfield Communications, LLC","LHC Group, Inc.","LYB Company Store","M&T Bank",
+    "MAA Open Arms Program","Magellan Health","Magellan MFLC","Medstar Health",
+    "Merry Maids","MileOne Autogroup","Modivcare","Natl. Mentor DBA Sevita",
+    "NVR Marketing Services","Paycom Payroll Holdings","Piedmont Healthcare",
+    "Pinch A Penny, Inc","Populus Fin. Group DBA ACE Cash Exp",
+    "Preferred Hotel Group","Premise Health","Printpack","Qiagen",
+    "SAIA Motor Freight Line, LLC","Sales Resource Center","Sick, Inc",
+    "Southern Company Gas","Spanish site-Knights of Columbus",
+    "Specialty Dental Brands","SSP America","Taub Family Selections",
+    "Test Account Training","The Villages Operating Company","Transwestern",
+    "Triad Advertising Corp","Trillium Health Resources","UMROI","Under Armour",
+    "University of MD Medical System","Webb Mason Commercial",
+    "Webb/Mason Company Store","Westmoor Mfg Co",
+    "Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
+  ]
+};
 
 function loadCompanies(){
   company.innerHTML='';
