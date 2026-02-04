@@ -179,13 +179,23 @@ function login(){
   auth.signInWithEmailAndPassword(email,loginPassword.value).catch(e=>alert(e.message));
 }
 
-// ENTER KEY HANDLING
+// ENTER KEY HANDLING (FIXED)
 document.addEventListener('keydown', e=>{
   if(e.key !== 'Enter') return;
 
-  if(!loginPage.classList.contains('hidden')) login();
-  if(document.activeElement.tagName==='TEXTAREA') return;
-  if(!agentForm.classList.contains('hidden')) saveLog();
+  // LOGIN PAGE ONLY
+  if(!document.getElementById('loginPage').classList.contains('hidden')){
+    login();
+    return; // stop here
+  }
+
+  // PREVENT submit while typing notes
+  if(document.activeElement.tagName === 'TEXTAREA') return;
+
+  // APP PAGE ONLY
+  if(!document.getElementById('app').classList.contains('hidden')){
+    saveLog();
+  }
 });
 
 // LOGOUT
@@ -427,5 +437,6 @@ function loadAdminCompanies(){
 
 </body>
 </html>
+
 
 
