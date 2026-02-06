@@ -5,54 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Call Logs Tool</title>
 
-<!-- Favicon (prevents 404 error) -->
-<link rel="icon" href="data:,">
-
 <!-- Firebase COMPAT -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-:root{
-  --bg:#f4f6f9;
-  --card:#fff;
-  --primary:#5b2be0;
-}
-.toast{
-  position:fixed;
-  top:20px;
-  right:20px;
-  background:#5b2be0;
-  color:#fff;
-  padding:12px 18px;
-  border-radius:8px;
-  box-shadow:0 4px 12px rgba(0,0,0,.2);
-  z-index:9999;
-  opacity:0;
-  transform:translateY(-20px);
-  pointer-events:none;
-  transition:opacity .4s ease, transform .4s ease;
-}
-.toast.show{
-  opacity:1;
-  transform:translateY(0);
-}
-body{margin:0;font-family:Arial;background:var(--bg)}
-header{display:none;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-.container{max-width:1200px;margin:auto;padding:20px}
-.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);margin-bottom:20px}
-input,select,textarea{width:100%;padding:10px;margin-bottom:10px;border-radius:8px;border:1px solid #ccc}
-.primary{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer}
-.logout{background:#666;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
-.hidden{display:none}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center}
-.modal-content{background:#fff;padding:20px;border-radius:10px;max-width:500px;width:90%}
+:root{--bg:#f4f6f9;--card:#fff;--primary:#5b2be0;}
+body{margin:0;font-family:Arial;background:var(--bg);}
+header{display:none;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1);}
+.container{max-width:1200px;margin:auto;padding:20px;}
+.card{background:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);margin-bottom:20px;}
+input,select,textarea{width:100%;padding:10px;margin-bottom:10px;border-radius:8px;border:1px solid #ccc;}
+.primary{background:var(--primary);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;}
+.logout{background:#666;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left;}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;}
+.modal-content{background:#fff;padding:20px;border-radius:10px;max-width:500px;width:90%;}
+.toast{position:fixed;top:20px;right:20px;background:var(--primary);color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:9999;opacity:0;transform:translateY(-20px);pointer-events:none;transition:opacity .4s ease, transform .4s ease;}
+.toast.show{opacity:1;transform:translateY(0);}
+.hidden{display:none;}
 </style>
 </head>
-
 <body>
 
 <!-- LOGIN -->
@@ -96,6 +71,7 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
       <option>Order Entry</option>
       <option>Order Status/ Tracking</option>
       <option>Impersonate</option>
+      <option>AM Escalation</option>
     </select>
     <select id="status">
       <option>Open</option>
@@ -107,16 +83,8 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
 Action Taken:</textarea>
     <button class="primary" onclick="saveLog()">Submit Log</button>
   </div>
-  
-  <!-- AGENT DAILY STATS -->
-  <div class="card">
-    <h3>My Daily Stats</h3>
-    <input type="date" id="agentDay">
-    <button class="primary" onclick="loadAgentStats()">View</button>
-    <div id="agentStats"></div>
-  </div>
 
-  <!-- AGENT HISTORY -->
+  <!-- HISTORY -->
   <div class="card">
     <h3>History</h3>
     <input type="text" id="searchCustomer" placeholder="Search by Customer">
@@ -144,7 +112,6 @@ Action Taken:</textarea>
     <input type="date" id="adminEndDate">
     <button class="primary" onclick="loadAdminAnalytics()">Run Analytics</button>
     <hr>
-    <div id="leaderboard"></div>
     <div id="analytics"></div>
     <button class="primary" onclick="exportCSV()">Export CSV</button>
   </div>
@@ -159,64 +126,79 @@ Action Taken:</textarea>
   </div>
 </div>
 
-<div id="actionToast" class="toast"></div>
-<div id="loginToast" class="toast">Login successful!</div>
+<div id="toast" class="toast"></div>
 
 <script>
+document.addEventListener('DOMContentLoaded',()=>{
+
+// ================== REFS ==================
+const modalText = document.getElementById('modalText');
+const notesModal = document.getElementById('notesModal');
+const toastEl = document.getElementById('toast');
+
+const loginPage = document.getElementById('loginPage');
+const app = document.getElementById('app');
+const appHeader = document.getElementById('appHeader');
+const userEmail = document.getElementById('userEmail');
+const adminPanel = document.getElementById('adminPanel');
+
+const customer = document.getElementById('customer');
+const phone = document.getElementById('phone');
+const refId = document.getElementById('refId');
+const tool = document.getElementById('tool');
+const company = document.getElementById('company');
+const disposition = document.getElementById('disposition');
+const status = document.getElementById('status');
+const notes = document.getElementById('notes');
+
+const searchCustomer = document.getElementById('searchCustomer');
+const filterCompany = document.getElementById('filterCompany');
+const filterStartDate = document.getElementById('filterStartDate');
+const filterEndDate = document.getElementById('filterEndDate');
+const logTable = document.getElementById('logTable');
+
+const adminCompanyFilter = document.getElementById('adminCompanyFilter');
+const adminStartDate = document.getElementById('adminStartDate');
+const adminEndDate = document.getElementById('adminEndDate');
+const analyticsEl = document.getElementById('analytics');
+
+// ================== FIREBASE ==================
 firebase.initializeApp({
   apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain:"call-logs-tool.firebaseapp.com",
   projectId:"call-logs-tool"
 });
-const auth=firebase.auth();
-const db=firebase.firestore();
-let isAdmin=false;
+const auth = firebase.auth();
+const db = firebase.firestore();
+let isAdmin = false;
 
-// LOGIN
-function login(){
-  const email = loginEmail.value.trim();
-  if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
-  auth.signInWithEmailAndPassword(email,loginPassword.value).catch(e=>alert(e.message));
+// ================== TOAST ==================
+function showToast(msg,duration=2500){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'),duration);
 }
 
-// ENTER KEY HANDLING (FIXED)
-document.addEventListener('keydown', e=>{
-  if(e.key !== 'Enter') return;
-
-  // LOGIN PAGE ONLY
-  if(!document.getElementById('loginPage').classList.contains('hidden')){
-    login();
-    return; // stop here
-  }
-
-  // PREVENT submit while typing notes
-  if(document.activeElement.tagName === 'TEXTAREA') return;
-
-  // APP PAGE ONLY
-  if(!document.getElementById('app').classList.contains('hidden')){
-    saveLog();
-  }
-});
-
-// LOGOUT
+// ================== LOGIN / LOGOUT ==================
+function login(){
+  const email = loginEmail.value.trim();
+  const pwd = loginPassword.value;
+  if(!email.endsWith('@supplylogic.com')) return alert('Use company email');
+  auth.signInWithEmailAndPassword(email,pwd).catch(e=>alert(e.message));
+}
 function logout(){ auth.signOut(); }
 
-// AUTH STATE
+// ================== AUTH STATE ==================
 auth.onAuthStateChanged(u=>{
   if(u){
-    showToast('✅ Login successful',2000);
+    showToast('Login successful ✅');
     isAdmin = u.email.startsWith('admin');
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
     userEmail.textContent = u.email;
-
-    if(isAdmin){
-      adminPanel.classList.remove('hidden');
-      agentForm.classList.add('hidden');
-      document.querySelector('#agentDay').closest('.card').classList.add('hidden');
-      loadAdminCompanies();
-    }
+    if(isAdmin) adminPanel.classList.remove('hidden');
+    populateCompanyFilters();
     loadLogs();
   } else {
     loginPage.classList.remove('hidden');
@@ -224,7 +206,7 @@ auth.onAuthStateChanged(u=>{
     appHeader.style.display='none';
   }
 });
-
+  
 // COMPANIES
 const companies={
   "Shopify":[
@@ -273,170 +255,152 @@ const companies={
 function loadCompanies(){
   company.innerHTML='';
   (companies[tool.value]||[]).forEach(c=>{
-    const o=document.createElement('option'); o.value=o.textContent=c; company.appendChild(o);
+    const o=document.createElement('option');
+    o.textContent = o.value = c;
+    company.appendChild(o);
   });
 }
 
-// SAVE LOG
+// Populate deduplicated filter companies
+function populateCompanyFilters(){
+  const allCompanies = Array.from(new Set([].concat(...Object.values(companies)))).sort();
+  filterCompany.innerHTML='<option value="">All Companies</option>';
+  adminCompanyFilter.innerHTML='<option value="">All Companies</option>';
+  allCompanies.forEach(c=>{
+    const o1 = document.createElement('option'); o1.value=o1.textContent=c; filterCompany.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value=o2.textContent=c; adminCompanyFilter.appendChild(o2);
+  });
+}
+
+// ================== SAVE LOG ==================
 function saveLog(){
-  const customerEl = document.getElementById('customer');
-  const phoneEl = document.getElementById('phone');
-  const refEl = document.getElementById('refId');
-  const toolEl = document.getElementById('tool');
-  const companyEl = document.getElementById('company');
-  const dispositionEl = document.getElementById('disposition');
-  const statusEl = document.getElementById('status');
-  const notesEl = document.getElementById('notes');
-
-  if(!customerEl.value || !toolEl.value || !companyEl.value) return alert('Please complete required fields');
-
+  if(!customer.value || !tool.value || !company.value) return alert('Complete required fields');
+  const statusVal = status.value;
   db.collection('logs').add({
-    customer: customerEl.value,
-    phone: phoneEl.value||'',
-    ref: refEl.value||'',
-    tool: toolEl.value,
-    company: companyEl.value,
-    disposition: dispositionEl.value||'',
-    status: statusEl.value||'Open',
-    notes: notesEl.value.trim(),
+    customer: customer.value,
+    phone: phone.value||'',
+    ref: refId.value||'',
+    tool: tool.value,
+    company: company.value,
+    disposition: disposition.value,
+    status: statusVal,
+    notes: notes.value.trim(),
     agent: auth.currentUser.email,
     created: firebase.firestore.FieldValue.serverTimestamp(),
+    resolvedAt: statusVal==='Resolved'?firebase.firestore.FieldValue.serverTimestamp():null,
     createdDay: new Date().toISOString().slice(0,10),
     createdMonth: new Date().toISOString().slice(0,7)
   }).then(()=>{
-    customerEl.value=''; phoneEl.value=''; refEl.value=''; notesEl.value="Concern:\n\n\nAction Taken:";
-    showToast("✅ Log saved successfully");
+    customer.value=''; phone.value=''; refId.value=''; notes.value="Concern:\n\nAction Taken:";
+    showToast('✅ Log saved');
     loadLogs();
   }).catch(e=>alert(e.message));
 }
 
-// SHOW TOAST
-function showToast(msg,duration=2500){
-  const t=document.getElementById('actionToast'); t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),duration);
-}
-
-// POPULATE FILTERS
-function populateCompanyFilter(){
-  const companySelect=document.getElementById('filterCompany');
-  companySelect.innerHTML='<option value="">All Companies</option>';
-  const allCompanies=[].concat(...Object.values(companies));
-  allCompanies.forEach(c=>{
-    const o=document.createElement('option'); o.value=o.textContent=c; companySelect.appendChild(o);
-  });
-}
-populateCompanyFilter();
-
-// LOAD LOGS (AGENT)
+// ================== LOAD LOGS ==================
 function loadLogs(){
-  const table=document.getElementById('logTable');
-  table.innerHTML='';
-  let q=db.collection('logs').orderBy('created','desc');
+  logTable.innerHTML='';
+  let q = db.collection('logs').orderBy('created','desc');
 
-  const customerSearch=document.getElementById('searchCustomer').value.trim().toLowerCase();
-  const companyFilter=document.getElementById('filterCompany').value;
-  const startDate=document.getElementById('filterStartDate').value;
-  const endDate=document.getElementById('filterEndDate').value;
-
-  if(companyFilter) q=q.where('company','==',companyFilter);
-  if(startDate) q=q.where('createdDay','>=',startDate);
-  if(endDate) q=q.where('createdDay','<=',endDate);
+  if(filterCompany.value) q = q.where('company','==',filterCompany.value);
+  if(filterStartDate.value) q = q.where('createdDay','>=',filterStartDate.value);
+  if(filterEndDate.value) q = q.where('createdDay','<=',filterEndDate.value);
 
   q.get().then(s=>{
     s.forEach(d=>{
-      const l=d.data();
-      if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
-      const tr=document.createElement('tr');
+      const l = d.data();
+      if(searchCustomer.value && !l.customer.toLowerCase().includes(searchCustomer.value.toLowerCase())) return;
+      const tr = document.createElement('tr');
       tr.innerHTML=`
-<td>${l.customer}</td><td>${l.phone}</td><td>${l.company}</td><td>${l.disposition}</td>
-<td>${l.status}</td><td>${l.agent}</td><td>${l.created?.toDate().toLocaleString()||''}</td>
+<td>${l.customer}</td>
+<td>${l.phone}</td>
+<td>${l.company}</td>
+<td>${l.disposition}</td>
+<td>${l.status}</td>
+<td>${l.agent}</td>
+<td>${l.created?.toDate().toLocaleString()||''}</td>
 <td><button onclick="viewNotes('${d.id}')">View</button></td>
 <td>${isAdmin?`<button onclick="deleteLog('${d.id}')">Delete</button>`:''}</td>`;
-      table.appendChild(tr);
+      logTable.appendChild(tr);
     });
   });
 }
 
-// VIEW NOTES MODAL
+// ================== NOTES MODAL ==================
 function viewNotes(id){
   db.collection('logs').doc(id).get().then(doc=>{
-    if(!doc.exists) return;
-    const t=doc.data().notes||"";
-    modalText.innerHTML=`<b>Concern</b><br><br>${t.split("Action Taken:")[0].replace("Concern:","")}
-<br><br><b>Action Taken</b><br><br>${t.split("Action Taken:")[1]||''}`;
+    const txt = (doc.data().notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    modalText.innerHTML = txt;
     notesModal.style.display='flex';
   });
 }
 function closeModal(){ notesModal.style.display='none'; }
 
-// DELETE LOG
+// ================== DELETE LOG ==================
 function deleteLog(id){
   if(confirm('Delete this log?')) db.collection('logs').doc(id).delete().then(loadLogs);
 }
 
-// EXPORT CSV
+// ================== ADMIN ANALYTICS ==================
+function loadAdminAnalytics(){
+  analyticsEl.innerHTML='Loading...';
+  let q = db.collection('logs');
+  if(adminCompanyFilter.value) q = q.where('company','==',adminCompanyFilter.value);
+  if(adminStartDate.value) q = q.where('createdDay','>=',adminStartDate.value);
+  if(adminEndDate.value) q = q.where('createdDay','<=',adminEndDate.value);
+
+  q.get().then(s=>{
+    let total=0,resolved=0;
+    let agentMap={};
+    s.forEach(d=>{
+      total++;
+      const data=d.data();
+      if(data.status==='Resolved') resolved++;
+      agentMap[data.agent] = (agentMap[data.agent]||0)+1;
+    });
+
+    // Leaderboard
+    let leaderboardHTML='<b>Leaderboard (Logs per Agent)</b><br>';
+    const sortedAgents = Object.entries(agentMap).sort((a,b)=>b[1]-a[1]);
+    sortedAgents.forEach(([agent,count])=>{
+      leaderboardHTML+=`${agent}: ${count}<br>`;
+    });
+
+    analyticsEl.innerHTML=`<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${resolved}<br>${leaderboardHTML}`;
+  });
+}
+
+// ================== EXPORT CSV ==================
 function exportCSV(){
-  db.collection('logs').get().then(s=>{
+  let q = db.collection('logs');
+  if(adminCompanyFilter.value) q = q.where('company','==',adminCompanyFilter.value);
+  if(adminStartDate.value) q = q.where('createdDay','>=',adminStartDate.value);
+  if(adminEndDate.value) q = q.where('createdDay','<=',adminEndDate.value);
+
+  q.get().then(s=>{
     let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
     s.forEach(d=>{
       const l=d.data();
-      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.created?.toDate()||''},"${l.notes.replace(/\n/g,' ')}"\n`;
+      csv+=`"${l.customer}","${l.phone}","${l.company}","${l.disposition}","${l.status}","${l.agent}","${l.created?.toDate().toLocaleString()||''}","${(l.notes||'').replace(/\n/g,' ')}"\n`;
     });
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='call_logs.csv'; a.click();
+    const blob=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='logs.csv';
+    a.click();
   });
 }
 
-// AGENT DAILY STATS
-function loadAgentStats(){
-  const day=document.getElementById('agentDay').value;
-  if(!day) return alert('Select a date');
-  db.collection('logs').where('agent','==',auth.currentUser.email).where('createdDay','==',day).get().then(s=>{
-    let total=0,res=0;
-    s.forEach(d=>{ total++; if(d.data().status==='Resolved') res++; });
-    agentStats.innerHTML=`<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${res}`;
-  });
-}
+// ================== ENTER KEY SUBMIT ==================
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    if(!loginPage.classList.contains('hidden')) login();
+    else if(document.activeElement.tagName!=='TEXTAREA') saveLog();
+  }
+});
 
-// ADMIN ANALYTICS
-function loadAdminAnalytics(){
-  let q=db.collection('logs');
-  const company=document.getElementById('adminCompanyFilter').value;
-  const start=document.getElementById('adminStartDate').value;
-  const end=document.getElementById('adminEndDate').value;
-  if(company) q=q.where('company','==',company);
-  if(start) q=q.where('createdDay','>=',start);
-  if(end) q=q.where('createdDay','<=',end);
-  q.get().then(s=>{
-    const agentStats={}, dispositionStats={}, companyStats={};
-    s.forEach(d=>{
-      const l=d.data(),a=l.agent;
-      if(!agentStats[a]) agentStats[a]={logs:0,resolved:0};
-      agentStats[a].logs++; if(l.status==='Resolved') agentStats[a].resolved++;
-      dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
-      companyStats[l.company]=(companyStats[l.company]||0)+1;
-    });
-    // LEADERBOARD
-    let lb=`<h4>Agent Activity Leaderboard</h4><table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>% Resolved</th></tr>`;
-    Object.entries(agentStats).sort((a,b)=>b[1].logs-a[1].logs).forEach(([a,v])=>{
-      const pct=((v.resolved/v.logs)*100||0).toFixed(1);
-      lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
-    });
-    lb+='</table>'; leaderboard.innerHTML=lb;
-    analytics.innerHTML=`<h4>Most Used Disposition</h4>${Object.entries(dispositionStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
-<h4 style="margin-top:15px">Most Used Company</h4>${Object.entries(companyStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}`;
-  });
-}
-
-// LOAD ADMIN COMPANIES
-function loadAdminCompanies(){
-  const sel=document.getElementById('adminCompanyFilter');
-  sel.innerHTML='<option value="">All Companies</option>';
-  [].concat(...Object.values(companies)).forEach(c=>{ const o=document.createElement('option'); o.value=o.textContent=c; sel.appendChild(o); });
-}
+}); // DOMContentLoaded
 </script>
-
 </body>
 </html>
-
-
 
