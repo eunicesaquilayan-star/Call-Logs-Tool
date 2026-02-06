@@ -61,11 +61,11 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left;}
     <input id="phone" placeholder="Phone Number">
     <input id="refId" placeholder="User ID / Order # / INV #">
     <select id="tool" onchange="loadCompanies()">
-      <option value="">Select Tool</option>
-      <option>Shopify</option>
-      <option>Marcom</option>
-      <option>Marketing Bench</option>
-    </select>
+  <option value="">Select Tool</option>
+  <option value="Shopify">Shopify</option>
+  <option value="Marcom">Marcom</option>
+  <option value="Marketing Bench">Marketing Bench</option>
+  </select>
     <select id="company"></select>
     <select id="disposition">
       <option>Password Reset</option>
@@ -406,6 +406,7 @@ document.addEventListener('keydown', e=>{
 </script>
 </body>
 </html>
+
 
 
 
