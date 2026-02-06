@@ -47,7 +47,7 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left;}
   <img src="./images/SL-Logo4.png" height="95">
   <div>
     <span id="userEmail"></span>
-    <button class="logout" onclick="logout()">Logout</button>
+    <button class="logout" id="logoutBtn">Logout</button>
   </div>
 </header>
 
@@ -187,8 +187,10 @@ function login(){
   if(!email.endsWith('@supplylogic.com')) return alert('Use company email');
   auth.signInWithEmailAndPassword(email,pwd).catch(e=>alert(e.message));
 }
-function logout(){ auth.signOut(); }
-
+const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.addEventListener('click', ()=>{
+    auth.signOut();
+  });
 // ================== AUTH STATE ==================
 auth.onAuthStateChanged(u=>{
   if(u){
@@ -404,5 +406,6 @@ document.addEventListener('keydown', e=>{
 </script>
 </body>
 </html>
+
 
 
