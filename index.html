@@ -133,7 +133,6 @@ Action Taken:</textarea>
 <div id="toast" class="toast"></div>
 
 <script>
-document.addEventListener('DOMContentLoaded',()=>{
 
 // ================== REFS ==================
 const modalText = document.getElementById('modalText');
@@ -268,15 +267,12 @@ function loadCompanies(){
   const list = companies[toolEl.value] || [];
 
   list.forEach(c=>{
-    const o =ңdocument.createElement('option');
+    const o = document.createElement('option');
     o.value = c;
     o.textContent = c;
     companyEl.appendChild(o);
   });
 }
-
-// ===== DOM READY =====
-document.addEventListener('DOMContentLoaded',()=>{
 
   // ALL your existing code here
   // firebase
@@ -429,6 +425,7 @@ document.addEventListener('keydown', e=>{
 </script>
 </body>
 </html>
+
 
 
 
