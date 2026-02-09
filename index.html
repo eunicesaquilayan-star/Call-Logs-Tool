@@ -186,22 +186,37 @@ function showToast(msg,duration=2500){
 function login(){
   const email = loginEmail.value.trim();
   const pwd = loginPassword.value;
-  if(!email.endsWith('@supplylogic.com')) return alert('Use company email');
-  auth.signInWithEmailAndPassword(email,pwd).catch(e=>alert(e.message));
-}
-const logoutBtn = document.getElementById('logoutBtn');
-  logoutBtn.addEventListener('click', ()=>{
-    auth.signOut();
-  });
-// ================== AUTH STATE ==================
-auth.onAuthStateChanged(u=>{
-  if(u){
-    showToast('Login successful ✅');
-    isAdmin = u.email.startsWith('admin');
+
+  // Admin password-only login
+  if(email === 'admin' && pwd === 'SLadmin@123'){
+    isAdmin = true;
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
-    userEmail.textContent = u.email;
+    userEmail.textContent = 'Admin';
+    adminPanel.classList.remove('hidden');
+    populateCompanyFilters();
+    loadLogs();
+    showToast('Admin login successful ✅');
+    return;
+  }
+
+  // Regular user login
+  if(!email.endsWith('@supplylogic.com')) return alert('Use company email');
+  auth.signInWithEmailAndPassword(email,pwd).catch(e=>alert(e.message));
+}
+
+document.getElementById('logoutBtn')
+  .addEventListener('click', ()=> auth.signOut());
+  
+// ================== AUTH STATE ==================
+auth.onAuthStateChanged(u=>{
+  if(u || isAdmin){
+    showToast('Login successful ✅');
+    loginPage.classList.add('hidden');
+    app.classList.remove('hidden');
+    appHeader.style.display='flex';
+    userEmail.textContent = isAdmin ? 'Admin' : u.email;
     if(isAdmin) adminPanel.classList.remove('hidden');
     populateCompanyFilters();
     loadLogs();
@@ -211,6 +226,7 @@ auth.onAuthStateChanged(u=>{
     appHeader.style.display='none';
   }
 });
+;
   
 // ===== GLOBAL DATA =====
 const companies={
@@ -274,14 +290,6 @@ function loadCompanies(){
   });
 }
 
-  // ALL your existing code here
-  // firebase
-  // login
-  // logs
-  // analytics
-  // etc
-
-});
 
 // Populate deduplicated filter companies
 function populateCompanyFilters(){
@@ -322,13 +330,21 @@ function saveLog(){
 // ================== LOAD LOGS ==================
 function loadLogs(){
   logTable.innerHTML='';
-  let q = db.collection('logs').orderBy('created','desc');
+  let start = filterStartDate.value ? new Date(filterStartDate.value) : null;
+  let end = filterEndDate.value ? new Date(filterEndDate.value) : null;
+
+  let q = db.collection('logs').orderBy('created', 'desc');
 
   if(filterCompany.value) q = q.where('company','==',filterCompany.value);
-  if(filterStartDate.value) q = q.where('createdDay','>=',filterStartDate.value);
-  if(filterEndDate.value) q = q.where('createdDay','<=',filterEndDate.value);
+  if(start) q = q.where('created', '>=', firebase.firestore.Timestamp.fromDate(start));
+  if(end) q = q.where('created', '<=', firebase.firestore.Timestamp.fromDate(end));
 
   q.get().then(s=>{
+    logTable.innerHTML = '';
+    if(s.empty){
+      logTable.innerHTML = '<tr><td colspan="9" style="text-align:center;">No logs found</td></tr>';
+      return;
+    }
     s.forEach(d=>{
       const l = d.data();
       if(searchCustomer.value && !l.customer.toLowerCase().includes(searchCustomer.value.toLowerCase())) return;
@@ -347,6 +363,7 @@ function loadLogs(){
     });
   });
 }
+
 
 // ================== NOTES MODAL ==================
 function viewNotes(id){
@@ -368,27 +385,37 @@ function loadAdminAnalytics(){
   analyticsEl.innerHTML='Loading...';
   let q = db.collection('logs');
   if(adminCompanyFilter.value) q = q.where('company','==',adminCompanyFilter.value);
-  if(adminStartDate.value) q = q.where('createdDay','>=',adminStartDate.value);
-  if(adminEndDate.value) q = q.where('createdDay','<=',adminEndDate.value);
+
+  // Filter by timestamp
+  if(adminStartDate.value){
+    let start = new Date(adminStartDate.value);
+    q = q.where('created', '>=', firebase.firestore.Timestamp.fromDate(start));
+  }
+  if(adminEndDate.value){
+    let end = new Date(adminEndDate.value);
+    end.setHours(23,59,59,999); // include entire day
+    q = q.where('created', '<=', firebase.firestore.Timestamp.fromDate(end));
+  }
 
   q.get().then(s=>{
-    let total=0,resolved=0;
+    let total=0, resolved=0;
     let agentMap={};
+
     s.forEach(d=>{
       total++;
-      const data=d.data();
+      const data = d.data();
       if(data.status==='Resolved') resolved++;
       agentMap[data.agent] = (agentMap[data.agent]||0)+1;
     });
 
     // Leaderboard
-    let leaderboardHTML='<b>Leaderboard (Logs per Agent)</b><br>';
+    let leaderboardHTML = '<b>Leaderboard (Logs per Agent)</b><br>';
     const sortedAgents = Object.entries(agentMap).sort((a,b)=>b[1]-a[1]);
     sortedAgents.forEach(([agent,count])=>{
-      leaderboardHTML+=`${agent}: ${count}<br>`;
+      leaderboardHTML += `${agent}: ${count}<br>`;
     });
 
-    analyticsEl.innerHTML=`<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${resolved}<br>${leaderboardHTML}`;
+    analyticsEl.innerHTML = `<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${resolved}<br>${leaderboardHTML}`;
   });
 }
 
@@ -396,22 +423,33 @@ function loadAdminAnalytics(){
 function exportCSV(){
   let q = db.collection('logs');
   if(adminCompanyFilter.value) q = q.where('company','==',adminCompanyFilter.value);
-  if(adminStartDate.value) q = q.where('createdDay','>=',adminStartDate.value);
-  if(adminEndDate.value) q = q.where('createdDay','<=',adminEndDate.value);
+
+  // Filter by timestamp
+  if(adminStartDate.value){
+    let start = new Date(adminStartDate.value);
+    q = q.where('created', '>=', firebase.firestore.Timestamp.fromDate(start));
+  }
+  if(adminEndDate.value){
+    let end = new Date(adminEndDate.value);
+    end.setHours(23,59,59,999); // include entire day
+    q = q.where('created', '<=', firebase.firestore.Timestamp.fromDate(end));
+  }
 
   q.get().then(s=>{
-    let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
+    let csv = "Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
     s.forEach(d=>{
-      const l=d.data();
-      csv+=`"${l.customer}","${l.phone}","${l.company}","${l.disposition}","${l.status}","${l.agent}","${l.created?.toDate().toLocaleString()||''}","${(l.notes||'').replace(/\n/g,' ')}"\n`;
+      const l = d.data();
+      csv += `"${l.customer}","${l.phone}","${l.company}","${l.disposition}","${l.status}","${l.agent}","${l.created?.toDate().toLocaleString()||''}","${(l.notes||'').replace(/\n/g,' ')}"\n`;
     });
-    const blob=new Blob([csv],{type:'text/csv'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download='logs.csv';
+
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'logs.csv';
     a.click();
   });
 }
+
 
 // ================== ENTER KEY SUBMIT ==================
 document.addEventListener('keydown', e=>{
@@ -420,11 +458,10 @@ document.addEventListener('keydown', e=>{
     else if(document.activeElement.tagName!=='TEXTAREA') saveLog();
   }
 });
-
-}); // DOMContentLoaded
 </script>
 </body>
 </html>
+
 
 
 
