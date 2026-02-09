@@ -66,7 +66,10 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left;}
   <option value="Marcom">Marcom</option>
   <option value="Marketing Bench">Marketing Bench</option>
   </select>
-    <select id="company"></select>
+    <select id="company">
+  <option value="">Select Company</option>
+</select>
+
     <select id="disposition">
       <option>Password Reset</option>
       <option>Order Entry</option>
@@ -210,7 +213,7 @@ auth.onAuthStateChanged(u=>{
   }
 });
   
-// COMPANIES
+// ===== GLOBAL DATA =====
 const companies={
   "Shopify":[
     "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
@@ -255,14 +258,34 @@ const companies={
   ]
 };
 
+// ===== GLOBAL FUNCTION =====
 function loadCompanies(){
-  company.innerHTML='';
-  (companies[tool.value]||[]).forEach(c=>{
-    const o=document.createElement('option');
-    o.textContent = o.value = c;
-    company.appendChild(o);
+  const toolEl = document.getElementById('tool');
+  const companyEl = document.getElementById('company');
+
+  companyEl.innerHTML = '<option value="">Select Company</option>';
+
+  const list = companies[toolEl.value] || [];
+
+  list.forEach(c=>{
+    const o =ңdocument.createElement('option');
+    o.value = c;
+    o.textContent = c;
+    companyEl.appendChild(o);
   });
 }
+
+// ===== DOM READY =====
+document.addEventListener('DOMContentLoaded',()=>{
+
+  // ALL your existing code here
+  // firebase
+  // login
+  // logs
+  // analytics
+  // etc
+
+});
 
 // Populate deduplicated filter companies
 function populateCompanyFilters(){
@@ -406,6 +429,7 @@ document.addEventListener('keydown', e=>{
 </script>
 </body>
 </html>
+
 
 
 
