@@ -459,12 +459,12 @@ if (l.status === 'Resolved') {
       // ===== BUILD ROW =====
       const tr = document.createElement('tr');
 if (slaClass === 'sla-breached') {
-  tr.style.backgroundColor = '#b71c1c';
+  tr.style.backgroundColor = '#fdecea';
 
 }
     
 
-      tr.innerHTML = `
+     tr.innerHTML = `
 <td>${l.customer}</td>
 <td>${l.phone}</td>
 <td>${l.company}</td>
@@ -475,7 +475,7 @@ if (slaClass === 'sla-breached') {
 <td><span class="${slaClass}">${slaText}</span></td>
 <td><button onclick="viewNotes('${d.id}')">View</button></td>
 <td>${isAdmin ? `<button onclick="deleteLog('${d.id}')">Delete</button>` : ''}</td>
-      `;
+`;
 
       table.appendChild(tr);
     });
@@ -537,6 +537,16 @@ function exportCSV(){
     a.click();
   });
 }
+  function deleteLog(id){
+  if(!confirm('Delete this log?')) return;
+
+  db.collection('logs').doc(id).delete()
+    .then(() => {
+      showToast('🗑️ Log deleted');
+      loadLogs();
+    })
+    .catch(e => alert(e.message));
+}
 
 
 // AGENT DAILY STATS
@@ -565,9 +575,9 @@ function loadAdminAnalytics(){
     let resolvedOnTime=0, breached=0, openBreached=0;
 
     s.forEach(d=>{
-      const l=d.data();
-      <td>${l.created?.toDate().toLocaleString() || ''}</td>
-      const hours=created ? (Date.now()-created.getTime())/36e5 : 0;
+      const l = d.data();
+      const created = l.created ? l.created.toDate() : null;
+      const hours = created ? (Date.now() - created.getTime()) / 36e5 : 0;
 
       // Leaderboard
       if(!agentStats[l.agent]) agentStats[l.agent]={logs:0,resolved:0};
@@ -635,6 +645,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
