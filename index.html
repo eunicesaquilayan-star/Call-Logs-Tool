@@ -424,29 +424,100 @@ function exportCSV(){
   let q = db.collection('logs');
   if(adminCompanyFilter.value) q = q.where('company','==',adminCompanyFilter.value);
 
-  // Filter by timestamp
+  // Filter by start date
   if(adminStartDate.value){
     let start = new Date(adminStartDate.value);
+    start.setHours(0,0,0,0);
     q = q.where('created', '>=', firebase.firestore.Timestamp.fromDate(start));
   }
+
+  // Filter by end date
   if(adminEndDate.value){
     let end = new Date(adminEndDate.value);
-    end.setHours(23,59,59,999); // include entire day
+    end.setHours(23,59,59,999);
     q = q.where('created', '<=', firebase.firestore.Timestamp.fromDate(end));
   }
 
-  q.get().then(s=>{
-    let csv = "Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
-    s.forEach(d=>{
-      const l = d.data();
-      csv += `"${l.customer}","${l.phone}","${l.company}","${l.disposition}","${l.status}","${l.agent}","${l.created?.toDate().toLocaleString()||''}","${(l.notes||'').replace(/\n/g,' ')}"\n`;
+  q.get().then(snapshot=>{
+    if(snapshot.empty){
+      return alert('No logs found for export.');
+    }
+
+    let totalLogs = 0;
+    let resolvedLogs = 0;
+    let slaCount = 0;
+    const agentMap = {};
+    const companyMap = {};
+    const dispositionMap = {};
+    const logsPerDay = {};
+
+    // Process all logs
+    const logRows = [];
+    snapshot.forEach(doc=>{
+      const l = doc.data();
+      totalLogs++;
+
+      if(l.status === 'Resolved') resolvedLogs++;
+
+      // SLA: resolved within 24h
+      if(l.status === 'Resolved' && l.resolvedAt && l.created){
+        const createdTime = l.created.toDate();
+        const resolvedTime = l.resolvedAt.toDate();
+        if((resolvedTime - createdTime) <= 24*60*60*1000) slaCount++;
+      }
+
+      // Analytics maps
+      agentMap[l.agent] = (agentMap[l.agent] || 0) + 1;
+      companyMap[l.company] = (companyMap[l.company] || 0) + 1;
+      dispositionMap[l.disposition] = (dispositionMap[l.disposition] || 0) + 1;
+
+      const day = l.created?.toDate().toISOString().slice(0,10) || 'Unknown';
+      logsPerDay[day] = (logsPerDay[day] || 0) + 1;
+
+      // Prepare CSV row
+      logRows.push([
+        l.customer,
+        l.phone,
+        l.company,
+        l.disposition,
+        l.status,
+        l.agent,
+        l.created?.toDate().toLocaleString() || '',
+        (l.notes||'').replace(/\n/g,' ')
+      ]);
     });
 
+    const resolvedPercent = ((resolvedLogs / totalLogs) * 100).toFixed(1);
+    const slaPercent = ((slaCount / totalLogs) * 100).toFixed(1);
+
+    const mostCompany = Object.entries(companyMap).sort((a,b)=>b[1]-a[1])[0] || ['-',0];
+    const mostDisposition = Object.entries(dispositionMap).sort((a,b)=>b[1]-a[1])[0] || ['-',0];
+
+    // Build CSV
+    let csv = `Analytics Summary\n`;
+    csv += `Total Logs,${totalLogs}\n`;
+    csv += `Resolved,${resolvedLogs}\n`;
+    csv += `Resolved %,${resolvedPercent}%\n`;
+    csv += `SLA (Resolved within 24h),${slaPercent}%\n`;
+    csv += `Most Used Company,${mostCompany[0]} (${mostCompany[1]})\n`;
+    csv += `Most Used Disposition,${mostDisposition[0]} (${mostDisposition[1]})\n`;
+    csv += `Logs per Day\nDate,Count\n`;
+    Object.entries(logsPerDay).sort((a,b)=>new Date(a[0])-new Date(b[0]))
+      .forEach(([day,count]) => { csv += `${day},${count}\n`; });
+
+    csv += `\nLogs Data\nCustomer,Phone,Company,Disposition,Status,Agent,Date,Notes\n`;
+    logRows.forEach(r => {
+      csv += `"${r.join('","')}"\n`;
+    });
+
+    // Download
     const blob = new Blob([csv], {type: 'text/csv'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'logs.csv';
+    a.download = 'logs_export.csv';
     a.click();
+
+    showToast('CSV exported ✅');
   });
 }
 
@@ -461,6 +532,7 @@ document.addEventListener('keydown', e=>{
 </script>
 </body>
 </html>
+
 
 
 
