@@ -458,7 +458,10 @@ if (l.status === 'Resolved') {
 
       // ===== BUILD ROW =====
       const tr = document.createElement('tr');
-      tr.style = rowStyle;
+if (someCondition) {
+  tr.style.backgroundColor = '#eee';
+}
+    
 
       tr.innerHTML = `
 <td>${l.customer}</td>
@@ -633,6 +636,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
