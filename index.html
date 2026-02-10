@@ -18,6 +18,22 @@
   --bg:#f4f6f9;
   --card:#fff;
   --primary:#5b2be0;
+  }
+  .sla-ok {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.sla-warning {
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+.sla-breached {
+  color: #b71c1c;
+  font-weight: bold;
+}
+
 }
 .toast{
   position:fixed;
@@ -398,30 +414,43 @@ function loadLogs(){
       // CUSTOMER SEARCH FILTER
       if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
 
-      // ===== SLA COMPUTATION =====
-      const created = l.created?.toDate();
-      let slaText = '—';
-      let rowStyle = '';
+      // ===== SLA COMPUTATION (COUNTDOWN) =====
+const created = l.created?.toDate();
+let slaText = '—';
+let slaClass = '';
 
-      if(created && l.status !== 'Resolved'){
-        const hours = (Date.now() - created.getTime()) / 36e5;
+if (created && l.status !== 'Resolved') {
+  const SLA_HOURS = 48;
+  const elapsedMs = Date.now() - created.getTime();
+  const elapsedHours = elapsedMs / 36e5;
+  const remainingHours = SLA_HOURS - elapsedHours;
 
-        if(hours >= 48){
-          rowStyle = 'background:#ffcccc;'; // BREACHED (RED)
-          slaText = 'BREACHED';
-        }
-        else if(hours >= 40){
-          rowStyle = 'background:#ffe0e0;'; // WARNING
-          slaText = 'Warning';
-        }
-        else{
-          slaText = 'Within SLA';
-        }
-      }
+  if (remainingHours <= 0) {
+    const over = Math.abs(remainingHours);
+    const h = Math.floor(over);
+    const m = Math.floor((over - h) * 60);
+    slaText = `❌ Breached by ${h}h ${m}m`;
+    slaClass = 'sla-breached';
+  }
+  else {
+    const h = Math.floor(remainingHours);
+    const m = Math.floor((remainingHours - h) * 60);
 
-      if(l.status === 'Resolved'){
-        slaText = 'Resolved';
-      }
+    if (remainingHours <= 8) {
+      slaText = `⚠️ ${h}h ${m}m remaining`;
+      slaClass = 'sla-warning';
+    } else {
+      slaText = `⏳ ${h}h ${m}m remaining`;
+      slaClass = 'sla-ok';
+    }
+  }
+}
+
+if (l.status === 'Resolved') {
+  slaText = 'Resolved';
+  slaClass = '';
+}
+
 
       // ===== BUILD ROW =====
       const tr = document.createElement('tr');
@@ -435,7 +464,7 @@ function loadLogs(){
 <td>${l.status}</td>
 <td>${l.agent}</td>
 <td>${l.created?.toDate().toLocaleString() || ''}</td>
-<td><b>${slaText}</b></td>
+<td><span class="${slaClass}">${slaText}</span></td>
 <td><button onclick="viewNotes('${d.id}')">View</button></td>
 <td>${isAdmin ? `<button onclick="deleteLog('${d.id}')">Delete</button>` : ''}</td>
       `;
@@ -582,6 +611,7 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 
 </body>
 </html>
+
 
 
 
