@@ -458,8 +458,9 @@ if (l.status === 'Resolved') {
 
       // ===== BUILD ROW =====
       const tr = document.createElement('tr');
-if (someCondition) {
-  tr.style.backgroundColor = '#eee';
+if (slaClass === 'sla-breached') {
+  tr.style.backgroundColor = '#fdecea';
+
 }
     
 
@@ -636,6 +637,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
