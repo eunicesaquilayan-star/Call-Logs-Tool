@@ -32,7 +32,6 @@
 .sla-breached {
   color: #b71c1c;
   font-weight: bold;
-}
 
 }
 .toast{
@@ -198,7 +197,6 @@ Action Taken:</textarea>
 </div>
 
 <div id="actionToast" class="toast"></div>
-<div id="loginToast" class="toast">Login successful!</div>
 
 <script>
 firebase.initializeApp({
@@ -237,7 +235,10 @@ document.addEventListener('keydown', e=>{
 });
 
 // LOGOUT
-function logout(){ auth.signOut(); }
+function logout(){
+  stopSlaAutoRefresh();
+  auth.signOut();
+}
 
 // AUTH STATE
 auth.onAuthStateChanged(u=>{
@@ -256,6 +257,8 @@ auth.onAuthStateChanged(u=>{
       loadAdminCompanies();
     }
     loadLogs();
+    startSlaAutoRefresh();
+
   } else {
     loginPage.classList.remove('hidden');
     app.classList.add('hidden');
@@ -447,9 +450,10 @@ if (created && l.status !== 'Resolved') {
 }
 
 if (l.status === 'Resolved') {
-  slaText = 'Resolved';
-  slaClass = '';
+  slaText = '✅ Resolved';
+  slaClass = 'sla-ok';
 }
+
 
 
       // ===== BUILD ROW =====
@@ -606,11 +610,30 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 `;
   });
 }
+// ===== AUTO REFRESH SLA EVERY MINUTE =====
+let slaAutoRefresh = null;
+
+function startSlaAutoRefresh() {
+  if (slaAutoRefresh) return; // prevent duplicates
+  slaAutoRefresh = setInterval(() => {
+    if (!document.getElementById('app').classList.contains('hidden')) {
+      loadLogs();
+    }
+  }, 60000);
+}
+
+function stopSlaAutoRefresh() {
+  if (slaAutoRefresh) {
+    clearInterval(slaAutoRefresh);
+    slaAutoRefresh = null;
+  }
+}
 
 </script>
 
 </body>
 </html>
+
 
 
 
