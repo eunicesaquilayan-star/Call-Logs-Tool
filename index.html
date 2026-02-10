@@ -249,7 +249,7 @@ auth.onAuthStateChanged(u=>{
     appHeader.style.display='flex';
     userEmail.textContent = u.email;
 
-    if(isAdmin){
+  
       if(isAdmin){
   adminPanel.classList.remove('hidden');
   agentForm.classList.add('hidden');
@@ -418,7 +418,7 @@ function loadLogs(){
       if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
 
       // ===== SLA COMPUTATION (COUNTDOWN) =====
-const created = l.created?.toDate();
+const created = l.created ? l.created.toDate() : null;
 let slaText = '—';
 let slaClass = '';
 
@@ -471,7 +471,7 @@ if (slaClass === 'sla-breached') {
 <td>${l.disposition}</td>
 <td>${l.status}</td>
 <td>${l.agent}</td>
-<td>${l.created?.toDate().toLocaleString() || ''}</td>
+<td>${l.created ? l.created.toDate().toLocaleString() : ''}</td>
 <td><span class="${slaClass}">${slaText}</span></td>
 <td><button onclick="viewNotes('${d.id}')">View</button></td>
 <td>${isAdmin ? `<button onclick="deleteLog('${d.id}')">Delete</button>` : ''}</td>
@@ -522,7 +522,7 @@ function exportCSV(){
 
     s.forEach(d=>{
       const l=d.data();
-      const created=l.created?.toDate();
+      const created = l.created ? l.created.toDate() : null;
       const hours=created ? (Date.now()-created.getTime())/36e5 : 0;
 
       let sla='On Time';
@@ -566,7 +566,7 @@ function loadAdminAnalytics(){
 
     s.forEach(d=>{
       const l=d.data();
-      const created=l.created?.toDate();
+      <td>${l.created?.toDate().toLocaleString() || ''}</td>
       const hours=created ? (Date.now()-created.getTime())/36e5 : 0;
 
       // Leaderboard
@@ -635,6 +635,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
