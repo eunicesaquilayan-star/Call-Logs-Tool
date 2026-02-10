@@ -176,7 +176,6 @@ Action Taken:</textarea>
   <!-- ADMIN PANEL -->
   <div id="adminPanel" class="card hidden">
     <h3>Admin Analytics</h3>
-    <select id="adminCompanyFilter"></select>
     <input type="date" id="adminStartDate">
     <input type="date" id="adminEndDate">
     <button class="primary" onclick="loadAdminAnalytics()">Run Analytics</button>
@@ -251,10 +250,11 @@ auth.onAuthStateChanged(u=>{
     userEmail.textContent = u.email;
 
     if(isAdmin){
-      adminPanel.classList.remove('hidden');
-      agentForm.classList.add('hidden');
-      document.querySelector('#agentDay').closest('.card').classList.add('hidden');
-      loadAdminCompanies();
+      if(isAdmin){
+  adminPanel.classList.remove('hidden');
+  agentForm.classList.add('hidden');
+  document.querySelector('#agentDay').closest('.card').classList.add('hidden');
+
     }
     loadLogs();
     startSlaAutoRefresh();
@@ -554,11 +554,9 @@ function loadAgentStats(){
 function loadAdminAnalytics(){
   let q=db.collection('logs');
 
-  const company=document.getElementById('adminCompanyFilter').value;
   const start=document.getElementById('adminStartDate').value;
   const end=document.getElementById('adminEndDate').value;
 
-  if(company) q=q.where('company','==',company);
   if(start) q=q.where('createdDay','>=',start);
   if(end) q=q.where('createdDay','<=',end);
 
@@ -637,6 +635,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
