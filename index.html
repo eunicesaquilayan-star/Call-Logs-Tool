@@ -91,12 +91,26 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
       <option>Marketing Bench</option>
     </select>
     <select id="company"></select>
-    <select id="disposition">
-      <option>Password Reset</option>
-      <option>Order Entry</option>
-      <option>Order Status/ Tracking</option>
-      <option>Impersonate</option>
-    </select>
+    <select id="disposition" onchange="checkDispositionReason()">
+  <option>Password Reset</option>
+  <option>Order Entry</option>
+  <option>Order Status/ Tracking</option>
+  <option>Impersonate</option>
+  <option>Other Department</option>
+  <option>Refer to AM</option>
+</select>
+    <select id="amReason" class="hidden">
+  <option value="">Select AM Reason</option>
+  <option>Account creation</option>
+  <option>Account transfer to a new manager, director, etc</option>
+  <option>Back order</option>
+  <option>Inventory</option>
+  <option>Order Pending</option>
+  <option>Order Approval</option>
+  <option>Website update</option>
+  <option>Other</option>
+</select>
+
     <select id="status">
       <option>Open</option>
       <option>Follow-up</option>
@@ -126,11 +140,19 @@ Action Taken:</textarea>
     <button class="primary" onclick="loadLogs()">Search / Filter</button>
     <table>
       <thead>
-        <tr>
-          <th>Customer</th><th>Phone</th><th>Company</th>
-          <th>Disposition</th><th>Status</th><th>Agent</th>
-          <th>Date</th><th>Notes</th><th></th>
-        </tr>
+       <tr>
+  <th>Customer</th>
+  <th>Phone</th>
+  <th>Company</th>
+  <th>Disposition</th>
+  <th>Status</th>
+  <th>Agent</th>
+  <th>Date</th>
+  <th>SLA</th>
+  <th>Notes</th>
+  <th></th>
+</tr>
+
       </thead>
       <tbody id="logTable"></tbody>
     </table>
@@ -270,12 +292,31 @@ const companies={
   ]
 };
 
-function loadCompanies(){
-  company.innerHTML='';
-  (companies[tool.value]||[]).forEach(c=>{
-    const o=document.createElement('option'); o.value=o.textContent=c; company.appendChild(o);
+function loadAdminCompanies(){
+  const select=document.getElementById('adminCompanyFilter');
+  select.innerHTML='<option value="">All Companies</option>';
+
+  const allCompanies=[].concat(...Object.values(companies));
+
+  allCompanies.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=o.textContent=c;
+    select.appendChild(o);
   });
 }
+function checkDispositionReason(){
+  const disp = document.getElementById('disposition').value;
+  const amBox = document.getElementById('amReason');
+
+  if(disp === 'Refer to AM'){
+    amBox.classList.remove('hidden');
+  } else {
+    amBox.classList.add('hidden');
+    amBox.value='';
+  }
+}
+
+
 
 // SAVE LOG
 function saveLog(){
@@ -297,12 +338,17 @@ function saveLog(){
     tool: toolEl.value,
     company: companyEl.value,
     disposition: dispositionEl.value||'',
+    amReason: document.getElementById('amReason').value || '',
     status: statusEl.value||'Open',
     notes: notesEl.value.trim(),
     agent: auth.currentUser.email,
     created: firebase.firestore.FieldValue.serverTimestamp(),
     createdDay: new Date().toISOString().slice(0,10),
-    createdMonth: new Date().toISOString().slice(0,7)
+    createdMonth: new Date().toISOString().slice(0,7),
+      
+     // ✅ SLA FIELDS
+  slaHours: (statusEl.value === 'Resolved') ? 0 : 48,
+  slaStatus: (statusEl.value === 'Resolved') ? 'Resolved On Time' : 'Open'
   }).then(()=>{
     customerEl.value=''; phoneEl.value=''; refEl.value=''; notesEl.value="Concern:\n\n\nAction Taken:";
     showToast("✅ Log saved successfully");
@@ -327,64 +373,132 @@ function populateCompanyFilter(){
 }
 populateCompanyFilter();
 
-// LOAD LOGS (AGENT)
+// LOAD LOGS (AGENT) — WITH SLA TRACKING
 function loadLogs(){
-  const table=document.getElementById('logTable');
-  table.innerHTML='';
-  let q=db.collection('logs').orderBy('created','desc');
+  const table = document.getElementById('logTable');
+  table.innerHTML = '';
 
-  const customerSearch=document.getElementById('searchCustomer').value.trim().toLowerCase();
-  const companyFilter=document.getElementById('filterCompany').value;
-  const startDate=document.getElementById('filterStartDate').value;
-  const endDate=document.getElementById('filterEndDate').value;
+  let q = db.collection('logs').orderBy('created','desc');
 
-  if(companyFilter) q=q.where('company','==',companyFilter);
-  if(startDate) q=q.where('createdDay','>=',startDate);
-  if(endDate) q=q.where('createdDay','<=',endDate);
+  const customerSearch = document.getElementById('searchCustomer').value.trim().toLowerCase();
+  const companyFilter = document.getElementById('filterCompany').value;
+  const startDate = document.getElementById('filterStartDate').value;
+  const endDate = document.getElementById('filterEndDate').value;
+
+  if(companyFilter) q = q.where('company','==',companyFilter);
+  if(startDate) q = q.where('createdDay','>=',startDate);
+  if(endDate) q = q.where('createdDay','<=',endDate);
 
   q.get().then(s=>{
     s.forEach(d=>{
-      const l=d.data();
+      const l = d.data();
+
+      // CUSTOMER SEARCH FILTER
       if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
-      const tr=document.createElement('tr');
-      tr.innerHTML=`
-<td>${l.customer}</td><td>${l.phone}</td><td>${l.company}</td><td>${l.disposition}</td>
-<td>${l.status}</td><td>${l.agent}</td><td>${l.created?.toDate().toLocaleString()||''}</td>
+
+      // ===== SLA COMPUTATION =====
+      const created = l.created?.toDate();
+      let slaText = '—';
+      let rowStyle = '';
+
+      if(created && l.status !== 'Resolved'){
+        const hours = (Date.now() - created.getTime()) / 36e5;
+
+        if(hours >= 48){
+          rowStyle = 'background:#ffcccc;'; // BREACHED (RED)
+          slaText = 'BREACHED';
+        }
+        else if(hours >= 40){
+          rowStyle = 'background:#ffe0e0;'; // WARNING
+          slaText = 'Warning';
+        }
+        else{
+          slaText = 'Within SLA';
+        }
+      }
+
+      if(l.status === 'Resolved'){
+        slaText = 'Resolved';
+      }
+
+      // ===== BUILD ROW =====
+      const tr = document.createElement('tr');
+      tr.style = rowStyle;
+
+      tr.innerHTML = `
+<td>${l.customer}</td>
+<td>${l.phone}</td>
+<td>${l.company}</td>
+<td>${l.disposition}</td>
+<td>${l.status}</td>
+<td>${l.agent}</td>
+<td>${l.created?.toDate().toLocaleString() || ''}</td>
+<td><b>${slaText}</b></td>
 <td><button onclick="viewNotes('${d.id}')">View</button></td>
-<td>${isAdmin?`<button onclick="deleteLog('${d.id}')">Delete</button>`:''}</td>`;
+<td>${isAdmin ? `<button onclick="deleteLog('${d.id}')">Delete</button>` : ''}</td>
+      `;
+
       table.appendChild(tr);
     });
   });
 }
 
+
 // VIEW NOTES MODAL
 function viewNotes(id){
-  db.collection('logs').doc(id).get().then(doc=>{
-    if(!doc.exists) return;
-    const t=doc.data().notes||"";
-    modalText.innerHTML=`<b>Concern</b><br><br>${t.split("Action Taken:")[0].replace("Concern:","")}
-<br><br><b>Action Taken</b><br><br>${t.split("Action Taken:")[1]||''}`;
-    notesModal.style.display='flex';
+  const modalText = document.getElementById('modalText');
+  const notesModal = document.getElementById('notesModal');
+
+  db.collection('logs').doc(id).get().then(doc => {
+    if (!doc.exists) return;
+
+    const notes = doc.data().notes || "";
+    const [concernPart, actionPart] = notes.split("Action Taken:");
+
+    modalText.innerHTML = `
+      <b>Concern</b><br><br>
+      ${concernPart ? concernPart.replace("Concern:", "").trim() : ''}
+      <br><br>
+      <b>Action Taken</b><br><br>
+      ${actionPart ? actionPart.trim() : ''}
+    `;
+
+    notesModal.style.display = 'flex';
+  }).catch(e => {
+    alert("Error loading notes: " + e.message);
   });
 }
-function closeModal(){ notesModal.style.display='none'; }
 
-// DELETE LOG
-function deleteLog(id){
-  if(confirm('Delete this log?')) db.collection('logs').doc(id).delete().then(loadLogs);
+// CLOSE NOTES MODAL
+function closeModal(){
+  const notesModal = document.getElementById('notesModal');
+  notesModal.style.display = 'none';
 }
+
 
 // EXPORT CSV
 function exportCSV(){
   db.collection('logs').get().then(s=>{
-    let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
+    let csv="Customer,Phone,Company,Disposition,AM Reason,Status,SLA Status,Agent,Date,Notes\n";
+
     s.forEach(d=>{
       const l=d.data();
-      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.status},${l.agent},${l.created?.toDate()||''},"${l.notes.replace(/\n/g,' ')}"\n`;
+      const created=l.created?.toDate();
+      const hours=created ? (Date.now()-created.getTime())/36e5 : 0;
+
+      let sla='On Time';
+      if(l.status!=='Resolved' && hours>48) sla='BREACHED';
+
+      csv+=`${l.customer},${l.phone},${l.company},${l.disposition},${l.amReason||''},${l.status},${sla},${l.agent},${created||''},"${l.notes.replace(/\n/g,' ')}"\n`;
     });
-    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='call_logs.csv'; a.click();
+
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download='call_logs_sla_report.csv';
+    a.click();
   });
 }
+
 
 // AGENT DAILY STATS
 function loadAgentStats(){
@@ -400,42 +514,72 @@ function loadAgentStats(){
 // ADMIN ANALYTICS
 function loadAdminAnalytics(){
   let q=db.collection('logs');
+
   const company=document.getElementById('adminCompanyFilter').value;
   const start=document.getElementById('adminStartDate').value;
   const end=document.getElementById('adminEndDate').value;
+
   if(company) q=q.where('company','==',company);
   if(start) q=q.where('createdDay','>=',start);
   if(end) q=q.where('createdDay','<=',end);
+
   q.get().then(s=>{
-    const agentStats={}, dispositionStats={}, companyStats={};
+    const agentStats={}, dispositionStats={}, slaDispStats={};
+    let resolvedOnTime=0, breached=0, openBreached=0;
+
     s.forEach(d=>{
-      const l=d.data(),a=l.agent;
-      if(!agentStats[a]) agentStats[a]={logs:0,resolved:0};
-      agentStats[a].logs++; if(l.status==='Resolved') agentStats[a].resolved++;
+      const l=d.data();
+      const created=l.created?.toDate();
+      const hours=created ? (Date.now()-created.getTime())/36e5 : 0;
+
+      // Leaderboard
+      if(!agentStats[l.agent]) agentStats[l.agent]={logs:0,resolved:0};
+      agentStats[l.agent].logs++;
+      if(l.status==='Resolved') agentStats[l.agent].resolved++;
+
+      // Disposition usage
       dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
-      companyStats[l.company]=(companyStats[l.company]||0)+1;
+
+      // SLA tracking
+      if(l.status==='Resolved' && hours<=48) resolvedOnTime++;
+      if(hours>48){
+        breached++;
+        slaDispStats[l.disposition]=(slaDispStats[l.disposition]||0)+1;
+        if(l.status!=='Resolved') openBreached++;
+      }
     });
-    // LEADERBOARD
-    let lb=`<h4>Agent Activity Leaderboard</h4><table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>% Resolved</th></tr>`;
-    Object.entries(agentStats).sort((a,b)=>b[1].logs-a[1].logs).forEach(([a,v])=>{
+
+    // Leaderboard
+    let lb=`<h4>Agent Activity Leaderboard</h4>
+    <table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>%</th></tr>`;
+
+    Object.entries(agentStats)
+    .sort((a,b)=>b[1].logs-a[1].logs)
+    .forEach(([a,v])=>{
       const pct=((v.resolved/v.logs)*100||0).toFixed(1);
       lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
     });
-    lb+='</table>'; leaderboard.innerHTML=lb;
-    analytics.innerHTML=`<h4>Most Used Disposition</h4>${Object.entries(dispositionStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
-<h4 style="margin-top:15px">Most Used Company</h4>${Object.entries(companyStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}`;
+
+    lb+='</table>';
+    leaderboard.innerHTML=lb;
+
+    // SLA Analytics
+    analytics.innerHTML=`
+<h4>SLA REPORT</h4>
+Resolved On Time: ${resolvedOnTime}<br>
+Breached: ${breached}<br>
+Open / Follow-up Breached: ${openBreached}
+
+<h4 style="margin-top:15px">Disposition Causing Breaches</h4>
+${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
+`;
   });
 }
 
-// LOAD ADMIN COMPANIES
-function loadAdminCompanies(){
-  const sel=document.getElementById('adminCompanyFilter');
-  sel.innerHTML='<option value="">All Companies</option>';
-  [].concat(...Object.values(companies)).forEach(c=>{ const o=document.createElement('option'); o.value=o.textContent=c; sel.appendChild(o); });
-}
 </script>
 
 </body>
 </html>
+
 
 
