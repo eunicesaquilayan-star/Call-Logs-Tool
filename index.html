@@ -292,28 +292,20 @@ const companies={
   ]
 };
 
-function loadAdminCompanies(){
-  const select=document.getElementById('adminCompanyFilter');
-  select.innerHTML='<option value="">All Companies</option>';
+function loadCompanies() {
+  const toolEl = document.getElementById('tool');
+  const companyEl = document.getElementById('company');
+  const tool = toolEl.value;
 
-  const allCompanies=[].concat(...Object.values(companies));
+  companyEl.innerHTML = '<option value="">Select Company</option>'; // reset
 
-  allCompanies.forEach(c=>{
-    const o=document.createElement('option');
-    o.value=o.textContent=c;
-    select.appendChild(o);
+  if (!tool || !companies[tool]) return; // nothing selected
+
+  companies[tool].forEach(c => {
+    const o = document.createElement('option');
+    o.value = o.textContent = c;
+    companyEl.appendChild(o);
   });
-}
-function checkDispositionReason(){
-  const disp = document.getElementById('disposition').value;
-  const amBox = document.getElementById('amReason');
-
-  if(disp === 'Refer to AM'){
-    amBox.classList.remove('hidden');
-  } else {
-    amBox.classList.add('hidden');
-    amBox.value='';
-  }
 }
 
 
@@ -580,6 +572,7 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 
 </body>
 </html>
+
 
 
 
