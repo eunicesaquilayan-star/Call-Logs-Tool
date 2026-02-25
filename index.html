@@ -219,6 +219,11 @@ Action Taken:</textarea>
 <div id="actionToast" class="toast"></div>
 
 <script>
+  let pageSize = 15;
+let currentPage = 1;
+let editLogId = null;
+let submissionLock = false;
+  
 firebase.initializeApp({
   apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain:"call-logs-tool.firebaseapp.com",
@@ -230,9 +235,12 @@ let isAdmin=false;
 
 // LOGIN
 function login(){
-  const email = loginEmail.value.trim();
+  const email = document.getElementById("loginEmail").value.trim();
   if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
-  auth.signInWithEmailAndPassword(email,loginPassword.value).catch(e=>alert(e.message));
+  const password=document.getElementById("loginPassword").value;
+
+auth.signInWithEmailAndPassword(email,password)
+.catch(e=>alert(e.message));
 }
 
 // ENTER KEY HANDLING (FIXED)
@@ -264,7 +272,7 @@ function logout(){
 auth.onAuthStateChanged(u=>{
   if(u){
     showToast('✅ Login successful',2000);
-    isAdmin = u.email.startsWith('admin');
+    isAdmin = u.email?.startsWith('admin');
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
@@ -298,7 +306,7 @@ const companies={
     "American Airlines Credit Union","Applebee's","Brinker","Cash America",
     "Choice Hotels","Dave & Buster's / Main Event","Denny's",
     "Fogo de Chao","IHOP","Noodles & Company","Pei Wei",
-    "Pizza Hut","Steak N Shake"
+    "Pizza Hut","Steak N Shake","ZAXBYS","BAYADA","NAPA","Tomswatch"
   ],
   "Marketing Bench":[
     "23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth",
@@ -381,6 +389,7 @@ function saveLog(){
   const dispositionEl=document.getElementById("disposition");
   const statusEl=document.getElementById("status");
   const notesEl=document.getElementById("notes");
+  const amReason=document.getElementById("amReason");
 
   if(!customerEl.value.trim()){
     alert("Customer required");
@@ -398,9 +407,9 @@ function saveLog(){
     amReason:amReason.value,
     status:statusEl.value||"Open",
     notes:notesEl.value.trim(),
-    agent:auth.currentUser.email,
+    agent:auth.currentUser?.email || "",
 
-    created:firebase.firestore.FieldValue.serverTimestamp(),
+   created:firebase.firestore.FieldValue.serverTimestamp(),
     createdDay:new Date().toISOString().slice(0,10)
 
   }).then(()=>{
@@ -437,7 +446,23 @@ function loadLogs(page=1){
   const companyFilter=filterCompany.value;
   const startDate=filterStartDate.value;
   const endDate=filterEndDate.value;
+  const totalPages = Math.ceil(logs.length / pageSize);
 
+if(totalPages > 1){
+  let controls="";
+
+  if(currentPage>1){
+    controls+=`<button class="primary" onclick="loadLogs(${currentPage-1})">Previous</button>`;
+  }
+
+  controls+=` Page ${currentPage} of ${totalPages} `;
+
+  if(currentPage<totalPages){
+    controls+=`<button class="primary" onclick="loadLogs(${currentPage+1})">Next</button>`;
+  }
+
+  pagination.innerHTML=controls;
+}
   if(companyFilter)
     query=query.where("company","==",companyFilter);
 
@@ -462,7 +487,6 @@ function loadLogs(page=1){
 
     });
 
-    const totalPages=Math.ceil(logs.length/pageSize);
 
     const start=(page-1)*pageSize;
     const paginated=logs.slice(start,start+pageSize);
@@ -516,15 +540,19 @@ function loadLogs(page=1){
 
       let controls="";
 
-      if(currentPage>1)
-        controls+=`<button class="primary" onclick="loadLogs(${currentPage-1})">Previous</button>`;
+if(currentPage>1){
+  controls+=`<button class="primary"
+  onclick="loadLogs(${currentPage-1})">Previous</button>`;
+}
 
-      controls+=` Page ${currentPage} of ${totalPages} `;
+controls+=` Page ${currentPage} of ${totalPages} `;
 
-      if(currentPage<totalPages)
-        controls+=`<button class="primary" onclick="loadLogs(${currentPage+1})">Next</button>`;
+if(currentPage<totalPages){
+  controls+=`<button class="primary"
+  onclick="loadLogs(${currentPage+1})">Next</button>`;
+}
 
-      pagination.innerHTML=controls;
+pagination.innerHTML=controls;
 
     }
 
@@ -543,7 +571,8 @@ function updateStatus(){
   const newStatus=editStatusSelect.value;
 
   db.collection("logs").doc(editLogId).update({
-    status:newStatus
+    status:newStatus,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
   }).then(()=>{
 
     showToast("✅ Status updated");
@@ -554,77 +583,58 @@ function updateStatus(){
     editLogId=null;
 
   }).catch(e=>alert(e.message));
-
 }
-  async function loadAgentStats(){
 
-  try{
+  function loadAgentStats(){
+  const day=document.getElementById('agentDay').value;
+  if(!day) return alert('Select a date');
 
-    const selectedDate = document.getElementById("agentDay").value;
-    if(!selectedDate){
-      alert("Please select a date.");
-      return;
-    }
+  const resultBox=document.getElementById('agentStatsResult');
+  resultBox.innerHTML="Loading...";
 
-    const resultBox = document.getElementById("agentStatsResult");
-    resultBox.innerHTML = "Loading...";
+  db.collection('logs')
+    .where('agent','==',auth.currentUser?.email || "")
+    .where('createdDay','==',day)
+    .get()
+    .then(snapshot=>{
 
-    let query = db.collection("logs")
-                  .where("createdDay","==",selectedDate);
+      let total=0;
+      let open=0;
+      let resolved=0;
+      let sameDayResolved=0;
 
-    // If NOT admin → only show own stats
-    if(!isAdmin){
-      query = query.where("agent","==",auth.currentUser.email);
-    }
+      snapshot.forEach(doc=>{
+        const data=doc.data();
+        total++;
 
-    const snapshot = await query.get();
+        if(data.status==="Resolved"){
+          resolved++;
 
-    if(snapshot.empty){
-      resultBox.innerHTML = "<b>No records found for selected date.</b>";
-      return;
-    }
+          if(data.created && data.created.toDate){
+            const createdDate=data.created.toDate()
+              .toISOString().slice(0,10);
 
-    let total = 0;
-    let open = 0;
-    let resolved = 0;
-    let sameDayResolved = 0;
-
-    snapshot.forEach(doc=>{
-      const data = doc.data();
-      total++;
-
-      if(data.status === "Resolved"){
-        resolved++;
-
-        if(data.created && data.created.toDate){
-          const createdDate = data.created.toDate().toISOString().slice(0,10);
-          if(createdDate === selectedDate){
-            sameDayResolved++;
+            if(createdDate===day){
+              sameDayResolved++;
+            }
           }
+
+        }else{
+          open++;
         }
+      });
 
-      }else{
-        open++;
-      }
-    });
-
-    resultBox.innerHTML = `
+      resultBox.innerHTML=`
       <div style="background:#f4f6f9;padding:15px;border-radius:8px">
-        <h3 style="margin:0 0 10px 0;">Agent Daily Stats (${selectedDate})</h3>
+        <h3>Agent Daily Stats (${day})</h3>
         <p><b>Total Logs:</b> ${total}</p>
         <p><b>Open:</b> ${open}</p>
         <p><b>Resolved:</b> ${resolved}</p>
         <p><b>Resolved Same Day:</b> ${sameDayResolved}</p>
       </div>
-    `;
-
-  }catch(error){
-    console.error(error);
-    alert("Error loading stats: " + error.message);
-  }
-
+      `;
+    });
 }
-
 // SHOW TOAST
 function showToast(msg,duration=2500){
   const t=document.getElementById('actionToast'); t.textContent=msg; t.classList.add('show');
@@ -647,12 +657,14 @@ function loadLogs(){
   const table = document.getElementById('logTable');
   table.innerHTML = '';
 
-  let q = db.collection('logs').orderBy('created','desc');
+ let q = db.collection('logs')
+.orderBy('created','desc')
+.limit(pageSize);
 
-  const customerSearch = document.getElementById('searchCustomer').value.trim().toLowerCase();
-  const companyFilter = document.getElementById('filterCompany').value;
-  const startDate = document.getElementById('filterStartDate').value;
-  const endDate = document.getElementById('filterEndDate').value;
+  const customerSearch = document.getElementById("searchCustomer").value.trim().toLowerCase();
+const companyFilter = document.getElementById("filterCompany").value;
+const startDate = document.getElementById("filterStartDate").value;
+const endDate = document.getElementById("filterEndDate").value;
 
   if(companyFilter) q = q.where('company','==',companyFilter);
   if(startDate) q = q.where('createdDay','>=',startDate);
@@ -663,7 +675,7 @@ function loadLogs(){
       const l = d.data();
 
       // CUSTOMER SEARCH FILTER
-      if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
+      if(customerSearch && !(l.customer||"").toLowerCase().includes(customerSearch)) return;
 
       // ===== SLA COMPUTATION (COUNTDOWN) =====
 const created = l.created ? l.created.toDate() : null;
@@ -712,24 +724,47 @@ if (slaClass === 'sla-breached') {
 }
     
 
-     tr.innerHTML = `
-<td>${l.customer}</td>
-<td>${l.phone}</td>
-<td>${l.company}</td>
-<td>${l.disposition}</td>
-<td>${l.status}</td>
-<td>${l.agent}</td>
-<td>${l.created ? l.created.toDate().toLocaleString() : ''}</td>
+    const createdText = l.created?.toDate?.().toLocaleString() || "";
+
+tr.innerHTML = `
+<td>${l.customer || ""}</td>
+<td>${l.phone || ""}</td>
+<td>${l.company || ""}</td>
+<td>${l.disposition || ""}</td>
+<td>${l.status || ""}</td>
+<td>${l.agent || ""}</td>
+<td>${createdText}</td>
 <td><span class="${slaClass}">${slaText}</span></td>
-<td><button onclick="viewNotes('${d.id}')">View</button></td>
-<td>${isAdmin ? `<button onclick="deleteLog('${d.id}')">Delete</button>` : ''}</td>
+<td>
+<button onclick="viewNotes('${d.id}')">View</button>
+
+${isAdmin || (auth.currentUser?.email === l.agent) ?
+`<button onclick="openEditModal('${d.id}')">Edit</button>` : ''}
+
+</td>
 `;
 
       table.appendChild(tr);
     });
   });
 }
+function openEditModal(id){
 
+  editLogId=id;
+
+  db.collection("logs").doc(id).get().then(doc=>{
+
+    if(!doc.exists) return;
+
+    const data=doc.data();
+
+    editStatusSelect.value=data.status||"Open";
+
+    statusEditModal.style.display="flex";
+
+  });
+
+}
 
 /* =========================================================
 MODALS
@@ -813,17 +848,6 @@ function deleteLog(id){
 }
 
 
-// AGENT DAILY STATS
-function loadAgentStats(){
-  const day=document.getElementById('agentDay').value;
-  if(!day) return alert('Select a date');
-  db.collection('logs').where('agent','==',auth.currentUser.email).where('createdDay','==',day).get().then(s=>{
-    let total=0,res=0;
-    s.forEach(d=>{ total++; if(d.data().status==='Resolved') res++; });
-    agentStats.innerHTML=`<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${res}`;
-  });
-}
-
 // ADMIN ANALYTICS
 function loadAdminAnalytics(){
   let q=db.collection('logs');
@@ -844,21 +868,35 @@ function loadAdminAnalytics(){
       const hours = created ? (Date.now() - created.getTime()) / 36e5 : 0;
 
       // Leaderboard
-      if(!agentStats[l.agent]) agentStats[l.agent]={logs:0,resolved:0};
-      agentStats[l.agent].logs++;
-      if(l.status==='Resolved') agentStats[l.agent].resolved++;
+      const agentName = l.agent || "Unknown";
+
+if(!agentStats[agentName])
+    agentStats[agentName]={logs:0,resolved:0};
+
+agentStats[agentName].logs++;
+
+if(l.status==='Resolved')
+    agentStats[agentName].resolved++;
 
       // Disposition usage
-      dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
+     const disp = l.disposition || "Unknown";
+dispositionStats[disp]=(dispositionStats[disp]||0)+1;
 
       // SLA tracking
-      if(l.status==='Resolved' && hours<=48) resolvedOnTime++;
-      if(hours>48){
-        breached++;
-        slaDispStats[l.disposition]=(slaDispStats[l.disposition]||0)+1;
-        if(l.status!=='Resolved') openBreached++;
-      }
-    });
+     if(hours <= 48){
+  if(l.status === 'Resolved')
+    resolvedOnTime++;
+}
+else{
+  breached++;
+
+  const disp = l.disposition || "Unknown";
+  slaDispStats[disp]=(slaDispStats[disp]||0)+1;
+
+  if(l.status!=="Resolved")
+    openBreached++;
+}
+});
 
     // Leaderboard
     let lb=`<h4>Agent Activity Leaderboard</h4>
@@ -909,6 +947,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
