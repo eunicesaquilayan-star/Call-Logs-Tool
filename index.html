@@ -219,87 +219,76 @@ Action Taken:</textarea>
 <div id="actionToast" class="toast"></div>
 
 <script>
-/* ================================
-ENTERPRISE CLEAN MASTER VERSION
-================================ */
-
 firebase.initializeApp({
-  apiKey:"AIzaSyBEbq_d9nGXFlHaWICDfOzvQECC6yjOQ",
+  apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain:"call-logs-tool.firebaseapp.com",
   projectId:"call-logs-tool"
 });
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-/* STATE */
+const auth=firebase.auth();
+const db=firebase.firestore();
 let isAdmin=false;
-let editLogId=null;
-let submissionLock=false;
 
-let currentPage=1;
-const pageSize=15;
-
-/* ================= LOGIN ================= */
-
+// LOGIN
 function login(){
-
-  const email=loginEmail.value.trim();
-
-  if(!email.endsWith("@supplylogic.com")){
-    alert("Only supplylogic email allowed");
-    return;
-  }
-
-  auth.signInWithEmailAndPassword(
-    email,
-    loginPassword.value
-  ).catch(e=>alert(e.message));
-
+  const email = loginEmail.value.trim();
+  if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
+  auth.signInWithEmailAndPassword(email,loginPassword.value).catch(e=>alert(e.message));
 }
 
-/* ================= LOGOUT ================= */
+// ENTER KEY HANDLING (FIXED)
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Enter') return;
 
+  // LOGIN PAGE ONLY
+  if(!document.getElementById('loginPage').classList.contains('hidden')){
+    login();
+    return; // stop here
+  }
+
+  // PREVENT submit while typing notes
+  if(document.activeElement.tagName === 'TEXTAREA') return;
+
+  // APP PAGE ONLY
+  if(!document.getElementById('app').classList.contains('hidden')){
+    saveLog();
+  }
+});
+
+// LOGOUT
 function logout(){
   stopSlaAutoRefresh();
   auth.signOut();
 }
 
-/* ================= AUTH STATE ================= */
-
+// AUTH STATE
 auth.onAuthStateChanged(u=>{
+  if(u){
+    showToast('✅ Login successful',2000);
+    isAdmin = u.email.startsWith('admin');
+    loginPage.classList.add('hidden');
+    app.classList.remove('hidden');
+    appHeader.style.display='flex';
+    userEmail.textContent = u.email;
 
-  if(!u){
-  loginPage.classList.remove("hidden");
-  app.classList.add("hidden");
-  return;
-}
-
-  showToast("✅ Login successful",2000);
-
-  isAdmin=u.email.startsWith("admin");
-
-  loginPage.classList.add("hidden");
-  app.classList.remove("hidden");
-  appHeader.style.display="flex";
-
-  userEmail.textContent=u.email;
-
-  if(isAdmin){
-    adminPanel.classList.remove("hidden");
-    agentForm.classList.add("hidden");
-  }
-
-  loadLogs();
-  startSlaAutoRefresh();
-
-});
   
-/* =========================================================
-COMPANIES DATA
-=========================================================*/
-const companies={
+      if(isAdmin){
+  adminPanel.classList.remove('hidden');
+  agentForm.classList.add('hidden');
+  document.querySelector('#agentDay').closest('.card').classList.add('hidden');
 
+    }
+    loadLogs();
+    startSlaAutoRefresh();
+
+  } else {
+    loginPage.classList.remove('hidden');
+    app.classList.add('hidden');
+    appHeader.style.display='none';
+  }
+});
+
+// COMPANIES
+const companies={
   "Shopify":[
     "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
     "Raising Cane's Gear","Sevita","The Home Homer",
@@ -309,7 +298,7 @@ const companies={
     "American Airlines Credit Union","Applebee's","Brinker","Cash America",
     "Choice Hotels","Dave & Buster's / Main Event","Denny's",
     "Fogo de Chao","IHOP","Noodles & Company","Pei Wei",
-    "Pizza Hut","Steak N Shake","ZAXBYS","BAYADA","NAPAMARTKITECT","TomsWatch"
+    "Pizza Hut","Steak N Shake"
   ],
   "Marketing Bench":[
     "23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth",
@@ -340,68 +329,37 @@ const companies={
     "University of MD Medical System","Webb Mason Commercial",
     "Webb/Mason Company Store","Westmoor Mfg Co",
     "Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires"
-  ],
-   Other:["Other"]
+  ]
 };
 
-/* =========================================================
-COMPANY FILTER LOADER
-=========================================================*/
-function loadCompanies(){
+function loadCompanies() {
+  const toolEl = document.getElementById('tool');
+  const companyEl = document.getElementById('company');
+  const tool = toolEl.value;
 
-  const tool=document.getElementById("tool").value;
-  const companyEl=document.getElementById("company");
+  companyEl.innerHTML = '<option value="">Select Company</option>'; // reset
 
-  companyEl.innerHTML='<option value="">Select Company</option>';
+  if (!tool || !companies[tool]) return; // nothing selected
 
-  if(!tool) return;
-
-  const list=companies[tool];
-
-  if(list){
-    list.forEach(c=>{
-      const o=document.createElement("option");
-      o.value=o.textContent=c;
-      companyEl.appendChild(o);
-    });
-  }
-
-  const other=document.createElement("option");
-  other.value="Other";
-  other.textContent="Other";
-  companyEl.appendChild(other);
+  companies[tool].forEach(c => {
+    const o = document.createElement('option');
+    o.value = o.textContent = c;
+    companyEl.appendChild(o);
+  });
 }
-
-/* =========================================================
-DISPOSITION LOGIC
-=========================================================*/
 function checkDispositionReason(){
+  const disp = document.getElementById('disposition').value;
+  const amBox = document.getElementById('amReason');
 
-  const disp=document.getElementById("disposition").value;
-  const amBox=document.getElementById("amReason");
-
-  if(disp==="Refer to AM"){
-    amBox.classList.remove("hidden");
-  }else{
-    amBox.classList.add("hidden");
-    amBox.value="";
+  if(disp === 'Refer to AM'){
+    amBox.classList.remove('hidden');
+  } else {
+    amBox.classList.add('hidden');
+    amBox.value='';
   }
 }
 
-/* ================= TOAST ================= */
 
-function showToast(msg,duration=2500){
-
-  const t=document.getElementById("actionToast");
-
-  t.textContent=msg;
-  t.classList.add("show");
-
-  setTimeout(()=>{
-    t.classList.remove("show");
-  },duration);
-
-}
 /* ================= SAVE LOG ================= */
 
 function saveLog(){
@@ -667,6 +625,112 @@ function updateStatus(){
 
 }
 
+// SHOW TOAST
+function showToast(msg,duration=2500){
+  const t=document.getElementById('actionToast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),duration);
+}
+
+// POPULATE FILTERS
+function populateCompanyFilter(){
+  const companySelect=document.getElementById('filterCompany');
+  companySelect.innerHTML='<option value="">All Companies</option>';
+  const allCompanies=[].concat(...Object.values(companies));
+  allCompanies.forEach(c=>{
+    const o=document.createElement('option'); o.value=o.textContent=c; companySelect.appendChild(o);
+  });
+}
+populateCompanyFilter();
+
+// LOAD LOGS (AGENT) — WITH SLA TRACKING
+function loadLogs(){
+  const table = document.getElementById('logTable');
+  table.innerHTML = '';
+
+  let q = db.collection('logs').orderBy('created','desc');
+
+  const customerSearch = document.getElementById('searchCustomer').value.trim().toLowerCase();
+  const companyFilter = document.getElementById('filterCompany').value;
+  const startDate = document.getElementById('filterStartDate').value;
+  const endDate = document.getElementById('filterEndDate').value;
+
+  if(companyFilter) q = q.where('company','==',companyFilter);
+  if(startDate) q = q.where('createdDay','>=',startDate);
+  if(endDate) q = q.where('createdDay','<=',endDate);
+
+  q.get().then(s=>{
+    s.forEach(d=>{
+      const l = d.data();
+
+      // CUSTOMER SEARCH FILTER
+      if(customerSearch && !l.customer.toLowerCase().includes(customerSearch)) return;
+
+      // ===== SLA COMPUTATION (COUNTDOWN) =====
+const created = l.created ? l.created.toDate() : null;
+let slaText = '—';
+let slaClass = '';
+
+if (created && l.status !== 'Resolved') {
+  const SLA_HOURS = 48;
+  const elapsedMs = Date.now() - created.getTime();
+  const elapsedHours = elapsedMs / 36e5;
+  const remainingHours = SLA_HOURS - elapsedHours;
+
+  if (remainingHours <= 0) {
+    const over = Math.abs(remainingHours);
+    const h = Math.floor(over);
+    const m = Math.floor((over - h) * 60);
+    slaText = `❌ Breached by ${h}h ${m}m`;
+    slaClass = 'sla-breached';
+  }
+  else {
+    const h = Math.floor(remainingHours);
+    const m = Math.floor((remainingHours - h) * 60);
+
+    if (remainingHours <= 8) {
+      slaText = `⚠️ ${h}h ${m}m remaining`;
+      slaClass = 'sla-warning';
+    } else {
+      slaText = `⏳ ${h}h ${m}m remaining`;
+      slaClass = 'sla-ok';
+    }
+  }
+}
+
+if (l.status === 'Resolved') {
+  slaText = '✅ Resolved';
+  slaClass = 'sla-ok';
+}
+
+
+
+      // ===== BUILD ROW =====
+      const tr = document.createElement('tr');
+if (slaClass === 'sla-breached') {
+  tr.style.backgroundColor = '#fdecea';
+
+}
+    
+
+     tr.innerHTML = `
+<td>${l.customer}</td>
+<td>${l.phone}</td>
+<td>${l.company}</td>
+<td>${l.disposition}</td>
+<td>${l.status}</td>
+<td>${l.agent}</td>
+<td>${l.created ? l.created.toDate().toLocaleString() : ''}</td>
+<td><span class="${slaClass}">${slaText}</span></td>
+<td><button onclick="viewNotes('${d.id}')">View</button></td>
+<td>${isAdmin ? `<button onclick="deleteLog('${d.id}')">Delete</button>` : ''}</td>
+`;
+
+      table.appendChild(tr);
+    });
+  });
+}
+
+
 /* =========================================================
 MODALS
 =========================================================*/
@@ -748,34 +812,104 @@ function deleteLog(id){
 
 }
 
-/* ================= SLA REFRESH ================= */
 
-let slaAutoRefresh=null;
-
-function startSlaAutoRefresh(){
-
-  if(slaAutoRefresh) return;
-
-  slaAutoRefresh=setInterval(()=>{
-    if(!app.classList.contains("hidden"))
-      loadLogs(currentPage);
-  },60000);
-
+// AGENT DAILY STATS
+function loadAgentStats(){
+  const day=document.getElementById('agentDay').value;
+  if(!day) return alert('Select a date');
+  db.collection('logs').where('agent','==',auth.currentUser.email).where('createdDay','==',day).get().then(s=>{
+    let total=0,res=0;
+    s.forEach(d=>{ total++; if(d.data().status==='Resolved') res++; });
+    agentStats.innerHTML=`<b>Total Logs:</b> ${total}<br><b>Resolved:</b> ${res}`;
+  });
 }
 
-function stopSlaAutoRefresh(){
+// ADMIN ANALYTICS
+function loadAdminAnalytics(){
+  let q=db.collection('logs');
 
-  if(slaAutoRefresh){
+  const start=document.getElementById('adminStartDate').value;
+  const end=document.getElementById('adminEndDate').value;
+
+  if(start) q=q.where('createdDay','>=',start);
+  if(end) q=q.where('createdDay','<=',end);
+
+  q.get().then(s=>{
+    const agentStats={}, dispositionStats={}, slaDispStats={};
+    let resolvedOnTime=0, breached=0, openBreached=0;
+
+    s.forEach(d=>{
+      const l = d.data();
+      const created = l.created ? l.created.toDate() : null;
+      const hours = created ? (Date.now() - created.getTime()) / 36e5 : 0;
+
+      // Leaderboard
+      if(!agentStats[l.agent]) agentStats[l.agent]={logs:0,resolved:0};
+      agentStats[l.agent].logs++;
+      if(l.status==='Resolved') agentStats[l.agent].resolved++;
+
+      // Disposition usage
+      dispositionStats[l.disposition]=(dispositionStats[l.disposition]||0)+1;
+
+      // SLA tracking
+      if(l.status==='Resolved' && hours<=48) resolvedOnTime++;
+      if(hours>48){
+        breached++;
+        slaDispStats[l.disposition]=(slaDispStats[l.disposition]||0)+1;
+        if(l.status!=='Resolved') openBreached++;
+      }
+    });
+
+    // Leaderboard
+    let lb=`<h4>Agent Activity Leaderboard</h4>
+    <table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>%</th></tr>`;
+
+    Object.entries(agentStats)
+    .sort((a,b)=>b[1].logs-a[1].logs)
+    .forEach(([a,v])=>{
+      const pct=((v.resolved/v.logs)*100||0).toFixed(1);
+      lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
+    });
+
+    lb+='</table>';
+    leaderboard.innerHTML=lb;
+
+    // SLA Analytics
+    analytics.innerHTML=`
+<h4>SLA REPORT</h4>
+Resolved On Time: ${resolvedOnTime}<br>
+Breached: ${breached}<br>
+Open / Follow-up Breached: ${openBreached}
+
+<h4 style="margin-top:15px">Disposition Causing Breaches</h4>
+${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
+`;
+  });
+}
+// ===== AUTO REFRESH SLA EVERY MINUTE =====
+let slaAutoRefresh = null;
+
+function startSlaAutoRefresh() {
+  if (slaAutoRefresh) return; // prevent duplicates
+  slaAutoRefresh = setInterval(() => {
+    if (!document.getElementById('app').classList.contains('hidden')) {
+      loadLogs();
+    }
+  }, 60000);
+}
+
+function stopSlaAutoRefresh() {
+  if (slaAutoRefresh) {
     clearInterval(slaAutoRefresh);
-    slaAutoRefresh=null;
+    slaAutoRefresh = null;
   }
-
 }
 
 </script>
 
 </body>
 </html>
+
 
 
 
