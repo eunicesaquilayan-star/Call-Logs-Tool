@@ -272,7 +272,7 @@ function logout(){
 auth.onAuthStateChanged(u=>{
   if(u){
     showToast('✅ Login successful',2000);
-    isAdmin = u.email?.startsWith('admin');
+    isAdmin = u?.email?.toLowerCase().startsWith('admin') || false;
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
@@ -446,7 +446,7 @@ function loadLogs(page=1){
   const companyFilter=filterCompany.value;
   const startDate=filterStartDate.value;
   const endDate=filterEndDate.value;
-  const totalPages = Math.ceil(logs.length / pageSize);
+  
 
 if(totalPages > 1){
   let controls="";
@@ -473,8 +473,10 @@ if(totalPages > 1){
     query=query.where("createdDay","<=",endDate);
 
   query.get().then(snapshot=>{
+   
 
     let logs=[];
+    const totalPages = Math.ceil(logs.length / pageSize);
 
     snapshot.forEach(doc=>{
 
@@ -658,8 +660,7 @@ function loadLogs(){
   table.innerHTML = '';
 
  let q = db.collection('logs')
-.orderBy('created','desc')
-.limit(pageSize);
+.orderBy('created','desc');
 
   const customerSearch = document.getElementById("searchCustomer").value.trim().toLowerCase();
 const companyFilter = document.getElementById("filterCompany").value;
@@ -738,7 +739,7 @@ tr.innerHTML = `
 <td>
 <button onclick="viewNotes('${d.id}')">View</button>
 
-${isAdmin || (auth.currentUser?.email === l.agent) ?
+isAdmin = u.email?.startsWith('admin');
 `<button onclick="openEditModal('${d.id}')">Edit</button>` : ''}
 
 </td>
@@ -947,6 +948,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
