@@ -175,8 +175,8 @@ Action Taken:</textarea>
 
       </thead>
       <tbody id="logTable"></tbody>
-      <div id="paginationControls" style="margin-top:15px;text-align:center"></div>
     </table>
+    <div id="paginationControls" style="margin-top:15px;text-align:center"></div>
   </div>
 
   <!-- ADMIN PANEL -->
@@ -219,10 +219,9 @@ Action Taken:</textarea>
 <div id="actionToast" class="toast"></div>
 
 <script>
-/* =========================================================
-ENTERPRISE PRODUCTION SAFE VERSION
-Author: ChatGPT Refactor
-========================================================= */
+/* ================================
+ENTERPRISE CLEAN MASTER VERSION
+================================ */
 
 firebase.initializeApp({
   apiKey:"AIzaSyBEbq_d9nGXFlHaWICDfOzvQECC6yjOQ",
@@ -237,17 +236,15 @@ const db = firebase.firestore();
 let isAdmin=false;
 let editLogId=null;
 let submissionLock=false;
- 
-  /* PAGINATION STATE */
-let currentPage = 1;
-const pageSize = 15;
 
-/* =========================================================
-LOGIN
-=========================================================*/
+let currentPage=1;
+const pageSize=15;
+
+/* ================= LOGIN ================= */
+
 function login(){
 
-  const email = loginEmail.value.trim();
+  const email=loginEmail.value.trim();
 
   if(!email.endsWith("@supplylogic.com")){
     alert("Only supplylogic email allowed");
@@ -258,25 +255,29 @@ function login(){
     email,
     loginPassword.value
   ).catch(e=>alert(e.message));
+
 }
 
-/* =========================================================
-LOGOUT
-=========================================================*/
+/* ================= LOGOUT ================= */
+
 function logout(){
   stopSlaAutoRefresh();
   auth.signOut();
 }
 
-/* =========================================================
-AUTH STATE
-=========================================================*/
+/* ================= AUTH STATE ================= */
+
 auth.onAuthStateChanged(u=>{
-  if(!u) return;
+
+  if(!u){
+  loginPage.classList.remove("hidden");
+  app.classList.add("hidden");
+  return;
+}
 
   showToast("✅ Login successful",2000);
 
-  isAdmin = u.email.startsWith("admin");
+  isAdmin=u.email.startsWith("admin");
 
   loginPage.classList.add("hidden");
   app.classList.remove("hidden");
@@ -287,16 +288,13 @@ auth.onAuthStateChanged(u=>{
   if(isAdmin){
     adminPanel.classList.remove("hidden");
     agentForm.classList.add("hidden");
-
-    const dayCard=document.querySelector("#agentDay")?.closest(".card");
-    if(dayCard) dayCard.classList.add("hidden");
   }
 
   loadLogs();
   startSlaAutoRefresh();
+
 });
-
-
+  
 /* =========================================================
 COMPANIES DATA
 =========================================================*/
@@ -390,9 +388,8 @@ function checkDispositionReason(){
   }
 }
 
-/* =========================================================
-SAFE TOAST
-=========================================================*/
+/* ================= TOAST ================= */
+
 function showToast(msg,duration=2500){
 
   const t=document.getElementById("actionToast");
@@ -403,17 +400,14 @@ function showToast(msg,duration=2500){
   setTimeout(()=>{
     t.classList.remove("show");
   },duration);
-}
 
-/* =========================================================
-SUBMISSION SAFE GUARD
-=========================================================*/
+}
+/* ================= SAVE LOG ================= */
+
 function saveLog(){
 
   if(submissionLock) return;
-
   submissionLock=true;
-
   setTimeout(()=>submissionLock=false,1500);
 
   if(!auth.currentUser){
@@ -421,41 +415,35 @@ function saveLog(){
     return;
   }
 
-  const customerEl = document.getElementById('customer'); 
-  const phoneEl = document.getElementById('phone'); 
-  const refEl = document.getElementById('refId'); 
-  const toolEl = document.getElementById('tool'); 
-  const companyEl = document.getElementById('company'); 
-  const dispositionEl = document.getElementById('disposition'); 
-  const statusEl = document.getElementById('status'); 
-  const notesEl = document.getElementById('notes');
+  const customerEl=document.getElementById("customer");
+  const phoneEl=document.getElementById("phone");
+  const refEl=document.getElementById("refId");
+  const toolEl=document.getElementById("tool");
+  const companyEl=document.getElementById("company");
+  const dispositionEl=document.getElementById("disposition");
+  const statusEl=document.getElementById("status");
+  const notesEl=document.getElementById("notes");
 
   if(!customerEl.value.trim()){
-    alert("Customer name required");
-    return;
-  }
-
-  if(!toolEl.value || !companyEl.value){
-    alert("Please complete required fields");
+    alert("Customer required");
     return;
   }
 
   db.collection("logs").add({
 
     customer:customerEl.value.trim(),
-    phone:phoneEl.value?.trim()||"",
-    ref:refEl.value?.trim()||"",
+    phone:phoneEl.value.trim(),
+    ref:refEl.value.trim(),
     tool:toolEl.value,
     company:companyEl.value,
-    disposition:dispositionEl.value||"",
-    amReason:amReason.value||"",
+    disposition:dispositionEl.value,
+    amReason:amReason.value,
     status:statusEl.value||"Open",
     notes:notesEl.value.trim(),
     agent:auth.currentUser.email,
 
     created:firebase.firestore.FieldValue.serverTimestamp(),
-    createdDay:new Date().toISOString().slice(0,10),
-    createdMonth:new Date().toISOString().slice(0,7)
+    createdDay:new Date().toISOString().slice(0,10)
 
   }).then(()=>{
 
@@ -468,127 +456,126 @@ function saveLog(){
 
     loadLogs();
 
-  }).catch(e=>alert(e.message));
+  });
 
 }
 
-/* =========================================================
-LOAD LOGS
-=========================================================*/
-function loadLogs(page = 1){
+/* ================= LOAD LOGS PAGINATION ================= */
 
-currentPage = page;
+function loadLogs(page=1){
 
-const table=document.getElementById("logTable");
-const pagination=document.getElementById("paginationControls");
+  currentPage=page;
 
-table.innerHTML="";
-pagination.innerHTML="";
+  const table=document.getElementById("logTable");
+  const pagination=document.getElementById("paginationControls");
 
-let query=db.collection("logs").orderBy("created","desc");
+  table.innerHTML="";
+  pagination.innerHTML="";
 
-const customerSearch=searchCustomer.value.trim().toLowerCase();
-const companyFilter=filterCompany.value;
-const startDate=filterStartDate.value;
-const endDate=filterEndDate.value;
+  let query=db.collection("logs")
+    .orderBy("created","desc");
 
-if(companyFilter) query=query.where("company","==",companyFilter);
-if(startDate) query=query.where("createdDay",">=",startDate);
-if(endDate) query=query.where("createdDay","<=",endDate);
+  const search=searchCustomer.value.trim().toLowerCase();
+  const companyFilter=filterCompany.value;
+  const startDate=filterStartDate.value;
+  const endDate=filterEndDate.value;
 
-query.get().then(snapshot=>{
+  if(companyFilter)
+    query=query.where("company","==",companyFilter);
 
-let logs=[];
+  if(startDate)
+    query=query.where("createdDay",">=",startDate);
 
-snapshot.forEach(doc=>{
-  const l=doc.data();
+  if(endDate)
+    query=query.where("createdDay","<=",endDate);
 
-  if(customerSearch && !l.customer.toLowerCase().includes(customerSearch))
-    return;
+  query.get().then(snapshot=>{
 
-  logs.push({ id:doc.id, data:l });
-});
+    let logs=[];
 
-/* PAGINATION SPLIT */
-const totalPages=Math.ceil(logs.length/pageSize);
-const start=(page-1)*pageSize;
-const paginatedLogs=logs.slice(start,start+pageSize);
+    snapshot.forEach(doc=>{
 
-paginatedLogs.forEach(item=>{
+      const l=doc.data();
 
-  const l=item.data;
-  const created=l.created ? l.created.toDate() : null;
+      if(search && !l.customer?.toLowerCase().includes(search))
+        return;
 
-  let slaText="—";
-  let slaClass="";
+      logs.push({id:doc.id,data:l});
 
-  if(created && l.status!=="Resolved"){
+    });
 
-    const SLA_HOURS=48;
-    const elapsed=(Date.now()-created.getTime())/3600000;
-    const remaining=SLA_HOURS-elapsed;
+    const totalPages=Math.ceil(logs.length/pageSize);
 
-    if(remaining<=0){
-      slaText="❌ Breached";
-      slaClass="sla-breached";
+    const start=(page-1)*pageSize;
+    const paginated=logs.slice(start,start+pageSize);
+
+    paginated.forEach(item=>{
+
+      const l=item.data;
+      const created=l.created?.toDate?.();
+
+      let slaText="—";
+      let slaClass="";
+
+      if(created && l.status!=="Resolved"){
+
+        const SLA_HOURS=48;
+        const elapsed=(Date.now()-created.getTime())/3600000;
+
+        if(elapsed>=SLA_HOURS){
+          slaText="❌ Breached";
+          slaClass="sla-breached";
+        }
+        else if(elapsed>=40){
+          slaText="⚠️ Warning";
+          slaClass="sla-warning";
+        }
+        else{
+          slaText="⏳ OK";
+          slaClass="sla-ok";
+        }
+      }
+
+      const tr=document.createElement("tr");
+
+      tr.innerHTML=`
+        <td>${l.customer||""}</td>
+        <td>${l.phone||""}</td>
+        <td>${l.company||""}</td>
+        <td>${l.disposition||""}</td>
+        <td>${l.status||""}</td>
+        <td>${l.agent||""}</td>
+        <td>${created?created.toLocaleString():""}</td>
+        <td><span class="${slaClass}">${slaText}</span></td>
+        <td><button onclick="viewNotes('${item.id}')">View</button></td>
+      `;
+
+      table.appendChild(tr);
+
+    });
+
+    if(totalPages>1){
+
+      let controls="";
+
+      if(currentPage>1)
+        controls+=`<button class="primary" onclick="loadLogs(${currentPage-1})">Previous</button>`;
+
+      controls+=` Page ${currentPage} of ${totalPages} `;
+
+      if(currentPage<totalPages)
+        controls+=`<button class="primary" onclick="loadLogs(${currentPage+1})">Next</button>`;
+
+      pagination.innerHTML=controls;
+
     }
-    else if(remaining<=8){
-      slaText="⚠️ Warning";
-      slaClass="sla-warning";
-    }
-    else{
-      slaText="⏳ OK";
-      slaClass="sla-ok";
-    }
-  }
 
-  const tr=document.createElement("tr");
+  });
 
-  tr.innerHTML=`
-  <td>${l.customer||""}</td>
-  <td>${l.phone||""}</td>
-  <td>${l.company||""}</td>
-  <td>${l.disposition||""}</td>
-  <td>${l.status||""}</td>
-  <td>${l.agent||""}</td>
-  <td>${created?created.toLocaleString():""}</td>
-  <td><span class="${slaClass}">${slaText}</span></td>
-  <td>
-    <button onclick="viewNotes('${item.id}')">View</button>
-
-    ${isAdmin ?
-    `<button onclick="editStatus('${item.id}','${l.status}')">Edit Status</button>
-     <button onclick="deleteLog('${item.id}')">Delete</button>`
-    :
-    (l.status==="Open"?
-    `<button onclick="editStatus('${item.id}','${l.status}')">Edit Status</button>`:"")
-    }
-
-  </td>`;
-
-  table.appendChild(tr);
-
-});
-
-/* PAGINATION UI */
-if(totalPages>1){
-
-  let controls="";
-
-  if(currentPage>1){
-    controls+=`<button class="primary" onclick="loadLogs(${currentPage-1})">Previous</button> `;
-  }
-
-  controls+=` Page ${currentPage} of ${totalPages} `;
-
-  if(currentPage<totalPages){
-    controls+=`<button class="primary" onclick="loadLogs(${currentPage+1})">Next</button>`;
-  }
-
-  pagination.innerHTML=controls;
 }
 
-/* =========================================================
+
+  /* =========================================================
 STATUS UPDATE SAFE
 =========================================================*/
 function updateStatus(){
@@ -691,17 +678,13 @@ function closeStatusModal(){
   statusEditModal.style.display="none";
 }
 
-/* =========================================================
-NOTES VIEWER
-=========================================================*/
+/* ================= NOTES ================= */
+
 function viewNotes(id){
 
   db.collection("logs").doc(id).get().then(doc=>{
 
-    if(!doc.exists){
-      alert("Log not found");
-      return;
-    }
+    if(!doc.exists) return;
 
     const notes=doc.data().notes||"";
 
@@ -709,10 +692,10 @@ function viewNotes(id){
 
     modalText.innerHTML=`
     <b>Concern</b><br><br>
-    ${concernPart?concernPart.replace("Concern:","").trim():""}
+    ${concernPart?.replace("Concern:","").trim()||""}
     <br><br>
     <b>Action Taken</b><br><br>
-    ${actionPart?actionPart.trim():""}
+    ${actionPart?.trim()||""}
     `;
 
     notesModal.style.display="flex";
@@ -720,7 +703,6 @@ function viewNotes(id){
   });
 
 }
-
 /* =========================================================
 CSV EXPORT SAFE
 =========================================================*/
@@ -733,7 +715,7 @@ function exportCSV(){
     snapshot.forEach(doc=>{
 
       const l=doc.data();
-      const created=l.created?l.created.toDate():"";
+      const created=l.created?.toDate?.() || "";
 
       csv+=`${l.customer||""},${l.phone||""},${l.company||""},${l.disposition||""},${l.status||""},${l.agent||""},${created},"${(l.notes||"").replace(/\n/g," ")}"\n`;
 
@@ -751,9 +733,8 @@ function exportCSV(){
 
 }
 
-/* =========================================================
-DELETE LOG
-=========================================================*/
+/* ================= DELETE ================= */
+
 function deleteLog(id){
 
   if(!confirm("Delete this log?")) return;
@@ -767,9 +748,8 @@ function deleteLog(id){
 
 }
 
-/* =========================================================
-SLA AUTO REFRESH
-=========================================================*/
+/* ================= SLA REFRESH ================= */
+
 let slaAutoRefresh=null;
 
 function startSlaAutoRefresh(){
@@ -777,9 +757,8 @@ function startSlaAutoRefresh(){
   if(slaAutoRefresh) return;
 
   slaAutoRefresh=setInterval(()=>{
-    if(!app.classList.contains("hidden")){
-      loadLogs();
-    }
+    if(!app.classList.contains("hidden"))
+      loadLogs(currentPage);
   },60000);
 
 }
@@ -790,11 +769,14 @@ function stopSlaAutoRefresh(){
     clearInterval(slaAutoRefresh);
     slaAutoRefresh=null;
   }
+
 }
+
 </script>
 
 </body>
 </html>
+
 
 
 
