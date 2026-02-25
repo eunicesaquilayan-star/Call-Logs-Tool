@@ -476,7 +476,7 @@ if(totalPages > 1){
    
 
     let logs=[];
-    const totalPages = Math.ceil(logs.length / pageSize);
+    
 
     snapshot.forEach(doc=>{
 
@@ -488,6 +488,8 @@ if(totalPages > 1){
       logs.push({id:doc.id,data:l});
 
     });
+
+    const totalPages = Math.ceil(logs.length / pageSize);
 
 
     const start=(page-1)*pageSize;
@@ -739,8 +741,9 @@ tr.innerHTML = `
 <td>
 <button onclick="viewNotes('${d.id}')">View</button>
 
-isAdmin = u.email?.startsWith('admin');
-`<button onclick="openEditModal('${d.id}')">Edit</button>` : ''}
+${isAdmin || (auth.currentUser?.email === l.agent)
+? `<button onclick="openEditModal('${d.id}')">Edit</button>`
+: ''}
 
 </td>
 `;
@@ -948,6 +951,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
