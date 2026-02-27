@@ -289,7 +289,6 @@ document.addEventListener('keydown', e=>{
 
 // LOGOUT
 function logout(){
-  stopSlaAutoRefresh();
   auth.signOut();
 }
 
@@ -314,7 +313,7 @@ firstVisibleDoc = null;
 
     }
     loadLogs();
-    startSlaAutoRefresh();
+    
 
   } else {
     loginPage.classList.remove('hidden');
@@ -716,12 +715,11 @@ function loadLogs(direction = "first") {
       <button onclick="viewNotes('${d.id}')">View</button>
 
       ${isAdmin 
-        ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
-        : auth.currentUser?.email === l.agent
-          ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
-          : ''
-      }
-
+  ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
+  : l.status !== "Resolved"
+    ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
+    : ''
+}
       ${isAdmin
         ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
         : ''
@@ -955,29 +953,13 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 `;
   });
 }
-// ===== AUTO REFRESH SLA EVERY MINUTE =====
-let slaAutoRefresh = null;
 
-function startSlaAutoRefresh() {
-  if (slaAutoRefresh) return; // prevent duplicates
-  slaAutoRefresh = setInterval(() => {
-    if (!document.getElementById('app').classList.contains('hidden')) {
-      loadLogs("first");
-    }
-  }, 60000);
-}
-
-function stopSlaAutoRefresh() {
-  if (slaAutoRefresh) {
-    clearInterval(slaAutoRefresh);
-    slaAutoRefresh = null;
-  }
-}
 
 </script>
 
 </body>
 </html>
+
 
 
 
