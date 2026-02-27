@@ -157,7 +157,7 @@ Action Taken:</textarea>
     <select id="filterCompany"></select>
     <input type="date" id="filterStartDate">
     <input type="date" id="filterEndDate">
-    <button class="primary" onclick="loadLogs()">Search / Filter</button>
+    <button onclick="applyFilters()">Search / Filter</button>
     <table>
       <thead>
        <tr>
@@ -170,7 +170,6 @@ Action Taken:</textarea>
   <th>Date</th>
   <th>SLA</th>
   <th>Notes</th>
-  <th></th>
 </tr>
 
       </thead>
@@ -216,10 +215,36 @@ Action Taken:</textarea>
   </div>
 </div>
 
+  <div id="fullEditModal" class="modal">
+  <div class="modal-content">
+    <h3>Admin Edit Log</h3>
+
+    <input id="editCustomer">
+    <input id="editPhone">
+    <input id="editRef">
+    <input id="editCompany">
+    <input id="editDisposition">
+
+    <select id="editFullStatus">
+      <option>Open</option>
+      <option>Follow-up</option>
+      <option>Resolved</option>
+    </select>
+
+    <textarea id="editNotes"></textarea>
+
+    <button class="primary" onclick="updateFullLog()">Update</button>
+    <button onclick="closeFullEditModal()">Cancel</button>
+  </div>
+</div>
+
 <div id="actionToast" class="toast"></div>
 
 <script>
-  let pageSize = 15;
+let lastVisibleDoc = null;
+let firstVisibleDoc = null;
+let pageStack = [];
+let pageSize = 15;
 let currentPage = 1;
 let editLogId = null;
 let submissionLock = false;
@@ -277,7 +302,10 @@ auth.onAuthStateChanged(u=>{
     app.classList.remove('hidden');
     appHeader.style.display='flex';
     userEmail.textContent = u.email;
-
+    
+    pageStack = [];
+lastVisibleDoc = null;
+firstVisibleDoc = null;
   
       if(isAdmin){
   adminPanel.classList.remove('hidden');
@@ -427,144 +455,6 @@ function saveLog(){
 
 }
 
-/* ================= LOAD LOGS PAGINATION ================= */
-
-function loadLogs(page=1){
-
-  currentPage=page;
-
-  const table=document.getElementById("logTable");
-  const pagination=document.getElementById("paginationControls");
-
-  table.innerHTML="";
-  pagination.innerHTML="";
-
-  let query=db.collection("logs")
-    .orderBy("created","desc");
-
-  const search=searchCustomer.value.trim().toLowerCase();
-  const companyFilter=filterCompany.value;
-  const startDate=filterStartDate.value;
-  const endDate=filterEndDate.value;
-  
-
-if(totalPages > 1){
-  let controls="";
-
-  if(currentPage>1){
-    controls+=`<button class="primary" onclick="loadLogs(${currentPage-1})">Previous</button>`;
-  }
-
-  controls+=` Page ${currentPage} of ${totalPages} `;
-
-  if(currentPage<totalPages){
-    controls+=`<button class="primary" onclick="loadLogs(${currentPage+1})">Next</button>`;
-  }
-
-  pagination.innerHTML=controls;
-}
-  if(companyFilter)
-    query=query.where("company","==",companyFilter);
-
-  if(startDate)
-    query=query.where("createdDay",">=",startDate);
-
-  if(endDate)
-    query=query.where("createdDay","<=",endDate);
-
-  query.get().then(snapshot=>{
-   
-
-    let logs=[];
-    
-
-    snapshot.forEach(doc=>{
-
-      const l=doc.data();
-
-      if(search && !l.customer?.toLowerCase().includes(search))
-        return;
-
-      logs.push({id:doc.id,data:l});
-
-    });
-
-    const totalPages = Math.ceil(logs.length / pageSize);
-
-
-    const start=(page-1)*pageSize;
-    const paginated=logs.slice(start,start+pageSize);
-
-    paginated.forEach(item=>{
-
-      const l=item.data;
-      const created=l.created?.toDate?.();
-
-      let slaText="—";
-      let slaClass="";
-
-      if(created && l.status!=="Resolved"){
-
-        const SLA_HOURS=48;
-        const elapsed=(Date.now()-created.getTime())/3600000;
-
-        if(elapsed>=SLA_HOURS){
-          slaText="❌ Breached";
-          slaClass="sla-breached";
-        }
-        else if(elapsed>=40){
-          slaText="⚠️ Warning";
-          slaClass="sla-warning";
-        }
-        else{
-          slaText="⏳ OK";
-          slaClass="sla-ok";
-        }
-      }
-
-      const tr=document.createElement("tr");
-
-      tr.innerHTML=`
-        <td>${l.customer||""}</td>
-        <td>${l.phone||""}</td>
-        <td>${l.company||""}</td>
-        <td>${l.disposition||""}</td>
-        <td>${l.status||""}</td>
-        <td>${l.agent||""}</td>
-        <td>${created?created.toLocaleString():""}</td>
-        <td><span class="${slaClass}">${slaText}</span></td>
-        <td><button onclick="viewNotes('${item.id}')">View</button></td>
-      `;
-
-      table.appendChild(tr);
-
-    });
-
-    if(totalPages>1){
-
-      let controls="";
-
-if(currentPage>1){
-  controls+=`<button class="primary"
-  onclick="loadLogs(${currentPage-1})">Previous</button>`;
-}
-
-controls+=` Page ${currentPage} of ${totalPages} `;
-
-if(currentPage<totalPages){
-  controls+=`<button class="primary"
-  onclick="loadLogs(${currentPage+1})">Next</button>`;
-}
-
-pagination.innerHTML=controls;
-
-    }
-
-  });
-
-}
-
-
   /* =========================================================
 STATUS UPDATE SAFE
 =========================================================*/
@@ -655,121 +545,214 @@ function populateCompanyFilter(){
   });
 }
 populateCompanyFilter();
+  /* ================= GLOBAL FILTER STATE ================= */
 
-// LOAD LOGS (AGENT) — WITH SLA TRACKING
-function loadLogs(){
+let activeFilter = {
+  company: "",
+  startDate: "",
+  endDate: "",
+  search: ""
+};
+
+/* ================= FILTER CAPTURE ================= */
+
+function captureFilters(){
+  activeFilter.company =
+    document.getElementById("filterCompany")?.value || "";
+
+  activeFilter.startDate =
+    document.getElementById("filterStartDate")?.value || "";
+
+  activeFilter.endDate =
+    document.getElementById("filterEndDate")?.value || "";
+
+  activeFilter.search =
+    document.getElementById("searchCustomer")?.value
+      ?.trim().toLowerCase() || "";
+}
+
+function applyFilters(){
+  pageStack = [];
+  lastVisibleDoc = null;
+  firstVisibleDoc = null;
+
+  captureFilters();
+  loadLogs("first");
+}
+
+/* ================= LOAD LOGS (FIXED PAGINATION) ================= */
+
+function loadLogs(direction = "first") {
+
+  if(direction === "first"){
+    pageStack = [];
+    lastVisibleDoc = null;
+    firstVisibleDoc = null;
+  }
+
+  if(direction === "current" && firstVisibleDoc){
+  direction = "next";
+  q = db.collection('logs')
+        .orderBy('created','desc')
+        .startAt(firstVisibleDoc)
+        .limit(pageSize);
+}
+
+  captureFilters();
+
   const table = document.getElementById('logTable');
   table.innerHTML = '';
 
- let q = db.collection('logs')
-.orderBy('created','desc');
+  let q = db.collection('logs')
+            .orderBy('created','desc');
 
-  const customerSearch = document.getElementById("searchCustomer").value.trim().toLowerCase();
-const companyFilter = document.getElementById("filterCompany").value;
-const startDate = document.getElementById("filterStartDate").value;
-const endDate = document.getElementById("filterEndDate").value;
+  // 🔹 APPLY FIRESTORE FILTERS
+  if(activeFilter.company)
+    q = q.where('company','==',activeFilter.company);
 
-  if(companyFilter) q = q.where('company','==',companyFilter);
-  if(startDate) q = q.where('createdDay','>=',startDate);
-  if(endDate) q = q.where('createdDay','<=',endDate);
+  if(activeFilter.startDate)
+    q = q.where('createdDay','>=',activeFilter.startDate);
 
-  q.get().then(s=>{
-    s.forEach(d=>{
+  if(activeFilter.endDate)
+    q = q.where('createdDay','<=',activeFilter.endDate);
+
+  q = q.limit(pageSize);
+
+  // 🔹 NEXT PAGE
+  if(direction === "next" && lastVisibleDoc){
+    q = q.startAfter(lastVisibleDoc);
+  }
+
+  // 🔹 PREVIOUS PAGE
+  if(direction === "prev" && pageStack.length > 1){
+    pageStack.pop();
+    const prevDoc = pageStack[pageStack.length - 1];
+    q = q.startAt(prevDoc);
+  }
+
+  q.get().then(snapshot=>{
+
+    if(snapshot.empty){
+      renderPaginationControls();
+      return;
+    }
+
+    firstVisibleDoc = snapshot.docs[0];
+    lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+
+    if(direction !== "prev"){
+      pageStack.push(firstVisibleDoc);
+    }
+
+    snapshot.forEach(d=>{
+
       const l = d.data();
 
-      // CUSTOMER SEARCH FILTER
-      if(customerSearch && !(l.customer||"").toLowerCase().includes(customerSearch)) return;
+      // 🔹 LOCAL SEARCH FILTER (Customer)
+      if(activeFilter.search &&
+        !(l.customer||"").toLowerCase().includes(activeFilter.search))
+        return;
 
-      // ===== SLA COMPUTATION (COUNTDOWN) =====
-const created = l.created ? l.created.toDate() : null;
-let slaText = '—';
-let slaClass = '';
+      /* ================= SLA COMPUTATION ================= */
 
-if (created && l.status !== 'Resolved') {
-  const SLA_HOURS = 48;
-  const elapsedMs = Date.now() - created.getTime();
-  const elapsedHours = elapsedMs / 36e5;
-  const remainingHours = SLA_HOURS - elapsedHours;
+      const created = l.created?.toDate?.() || null;
+      let slaText = '—';
+      let slaClass = '';
 
-  if (remainingHours <= 0) {
-    const over = Math.abs(remainingHours);
-    const h = Math.floor(over);
-    const m = Math.floor((over - h) * 60);
-    slaText = `❌ Breached by ${h}h ${m}m`;
-    slaClass = 'sla-breached';
-  }
-  else {
-    const h = Math.floor(remainingHours);
-    const m = Math.floor((remainingHours - h) * 60);
+      if (created && l.status !== 'Resolved') {
 
-    if (remainingHours <= 8) {
-      slaText = `⚠️ ${h}h ${m}m remaining`;
-      slaClass = 'sla-warning';
-    } else {
-      slaText = `⏳ ${h}h ${m}m remaining`;
-      slaClass = 'sla-ok';
-    }
-  }
-}
+        const SLA_HOURS = 48;
+        const elapsedMs = Date.now() - created.getTime();
+        const elapsedHours = elapsedMs / 36e5;
+        const remainingHours = SLA_HOURS - elapsedHours;
 
-if (l.status === 'Resolved') {
-  slaText = '✅ Resolved';
-  slaClass = 'sla-ok';
-}
+        if (remainingHours <= 0) {
+          const over = Math.abs(remainingHours);
+          const h = Math.floor(over);
+          const m = Math.floor((over - h) * 60);
+          slaText = `❌ Breached by ${h}h ${m}m`;
+          slaClass = 'sla-breached';
+        }
+        else {
+          const h = Math.floor(remainingHours);
+          const m = Math.floor((remainingHours - h) * 60);
 
+          if (remainingHours <= 8) {
+            slaText = `⚠️ ${h}h ${m}m remaining`;
+            slaClass = 'sla-warning';
+          } else {
+            slaText = `⏳ ${h}h ${m}m remaining`;
+            slaClass = 'sla-ok';
+          }
+        }
+      }
 
+      if (l.status === 'Resolved') {
+        slaText = '✅ Resolved';
+        slaClass = 'sla-ok';
+      }
 
-      // ===== BUILD ROW =====
+      /* ================= BUILD ROW ================= */
+
+      const createdText =
+        l.created?.toDate?.().toLocaleString() || "";
+
       const tr = document.createElement('tr');
-if (slaClass === 'sla-breached') {
-  tr.style.backgroundColor = '#fdecea';
 
-}
-    
+      if (slaClass === 'sla-breached') {
+        tr.style.backgroundColor = '#fdecea';
+      }
 
-    const createdText = l.created?.toDate?.().toLocaleString() || "";
+      tr.innerHTML = `
+      <td>${l.customer || ""}</td>
+      <td>${l.phone || ""}</td>
+      <td>${l.company || ""}</td>
+      <td>${l.disposition || ""}</td>
+      <td>${l.status || ""}</td>
+      <td>${l.agent || ""}</td>
+      <td>${createdText}</td>
+      <td><span class="${slaClass}">${slaText}</span></td>
+      <td>
+      <button onclick="viewNotes('${d.id}')">View</button>
 
-tr.innerHTML = `
-<td>${l.customer || ""}</td>
-<td>${l.phone || ""}</td>
-<td>${l.company || ""}</td>
-<td>${l.disposition || ""}</td>
-<td>${l.status || ""}</td>
-<td>${l.agent || ""}</td>
-<td>${createdText}</td>
-<td><span class="${slaClass}">${slaText}</span></td>
-<td>
-<button onclick="viewNotes('${d.id}')">View</button>
+      ${isAdmin 
+        ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
+        : auth.currentUser?.email === l.agent
+          ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
+          : ''
+      }
 
-${isAdmin || (auth.currentUser?.email === l.agent)
-? `<button onclick="openEditModal('${d.id}')">Edit</button>`
-: ''}
-
-</td>
-`;
+      ${isAdmin
+        ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
+        : ''
+      }
+      </td>
+      `;
 
       table.appendChild(tr);
     });
+
+    renderPaginationControls();
   });
 }
-function openEditModal(id){
 
-  editLogId=id;
+/* ================= PAGINATION CONTROLS ================= */
 
-  db.collection("logs").doc(id).get().then(doc=>{
+function renderPaginationControls(){
 
-    if(!doc.exists) return;
+  const controls = document.getElementById('paginationControls');
 
-    const data=doc.data();
+  controls.innerHTML = `
+    <button onclick="loadLogs('prev')" 
+      ${pageStack.length <= 1 ? 'disabled' : ''}>
+      ⬅ Prev
+    </button>
 
-    editStatusSelect.value=data.status||"Open";
-
-    statusEditModal.style.display="flex";
-
-  });
-
+    <button onclick="loadLogs('next')">
+      Next ➡
+    </button>
+  `;
 }
-
 /* =========================================================
 MODALS
 =========================================================*/
@@ -805,6 +788,50 @@ function viewNotes(id){
 
   });
 
+}
+
+  function openFullEditModal(id){
+  editLogId = id;
+
+  db.collection("logs").doc(id).get().then(doc=>{
+    if(!doc.exists) return;
+
+    const l = doc.data();
+
+    editCustomer.value = l.customer || "";
+    editPhone.value = l.phone || "";
+    editRef.value = l.ref || "";
+    editCompany.value = l.company || "";
+    editDisposition.value = l.disposition || "";
+    editFullStatus.value = l.status || "Open";
+    editNotes.value = l.notes || "";
+
+    fullEditModal.style.display = "flex";
+  });
+}
+
+function closeFullEditModal(){
+  fullEditModal.style.display = "none";
+}
+
+function updateFullLog(){
+  if(!editLogId) return;
+
+  db.collection("logs").doc(editLogId).update({
+    customer: editCustomer.value.trim(),
+    phone: editPhone.value.trim(),
+    ref: editRef.value.trim(),
+    company: editCompany.value.trim(),
+    disposition: editDisposition.value.trim(),
+    status: editFullStatus.value,
+    notes: editNotes.value.trim(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(()=>{
+    showToast("✅ Log fully updated");
+    closeFullEditModal();
+    loadLogs();
+    editLogId = null;
+  }).catch(e=>alert(e.message));
 }
 /* =========================================================
 CSV EXPORT SAFE
@@ -935,7 +962,7 @@ function startSlaAutoRefresh() {
   if (slaAutoRefresh) return; // prevent duplicates
   slaAutoRefresh = setInterval(() => {
     if (!document.getElementById('app').classList.contains('hidden')) {
-      loadLogs();
+      loadLogs("first");
     }
   }, 60000);
 }
@@ -951,6 +978,7 @@ function stopSlaAutoRefresh() {
 
 </body>
 </html>
+
 
 
 
