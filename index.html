@@ -155,6 +155,12 @@ Action Taken:</textarea>
     <h3>History</h3>
     <input type="text" id="searchCustomer" placeholder="Search by Customer">
     <select id="filterCompany"></select>
+    <select id="filterStatus">
+  <option value="">All Status</option>
+  <option>Open</option>
+  <option>Follow-up</option>
+  <option>Resolved</option>
+</select>
     <input type="date" id="filterStartDate">
     <input type="date" id="filterEndDate">
     <button onclick="applyFilters()">Search / Filter</button>
@@ -215,6 +221,7 @@ Action Taken:</textarea>
   </div>
 </div>
 
+  
   <div id="fullEditModal" class="modal">
   <div class="modal-content">
     <h3>Admin Edit Log</h3>
@@ -237,6 +244,7 @@ Action Taken:</textarea>
     <button onclick="closeFullEditModal()">Cancel</button>
   </div>
 </div>
+
 
 <div id="actionToast" class="toast"></div>
 
@@ -550,7 +558,8 @@ let activeFilter = {
   company: "",
   startDate: "",
   endDate: "",
-  search: ""
+  search: "",
+  status: ""
 };
 
 /* ================= FILTER CAPTURE ================= */
@@ -568,6 +577,8 @@ function captureFilters(){
   activeFilter.search =
     document.getElementById("searchCustomer")?.value
       ?.trim().toLowerCase() || "";
+  activeFilter.status =
+  document.getElementById("filterStatus")?.value || "";
 }
 
 function applyFilters(){
@@ -583,21 +594,13 @@ function applyFilters(){
 
 function loadLogs(direction = "first") {
 
+  captureFilters();
+
   if(direction === "first"){
     pageStack = [];
     lastVisibleDoc = null;
     firstVisibleDoc = null;
   }
-
-  if(direction === "current" && firstVisibleDoc){
-  direction = "next";
-  q = db.collection('logs')
-        .orderBy('created','desc')
-        .startAt(firstVisibleDoc)
-        .limit(pageSize);
-}
-
-  captureFilters();
 
   const table = document.getElementById('logTable');
   table.innerHTML = '';
@@ -605,24 +608,39 @@ function loadLogs(direction = "first") {
   let q = db.collection('logs')
             .orderBy('created','desc');
 
-  // 🔹 APPLY FIRESTORE FILTERS
-  if(activeFilter.company)
+  // 🔹 Company filter
+  if(activeFilter.company){
     q = q.where('company','==',activeFilter.company);
+  }
 
-  if(activeFilter.startDate)
+  // 🔹 Status filter
+  if(activeFilter.status){
+    q = q.where('status','==',activeFilter.status);
+  }
+
+  // 🔹 Date filters
+  if(activeFilter.startDate){
     q = q.where('createdDay','>=',activeFilter.startDate);
+  }
 
-  if(activeFilter.endDate)
+  if(activeFilter.endDate){
     q = q.where('createdDay','<=',activeFilter.endDate);
+  }
+
+  // 🔹 Search (prefix search only)
+  if(activeFilter.search){
+    q = q.where('customer','>=',activeFilter.search)
+         .where('customer','<=',activeFilter.search + '\uf8ff');
+  }
 
   q = q.limit(pageSize);
 
-  // 🔹 NEXT PAGE
+  // 🔹 Next page
   if(direction === "next" && lastVisibleDoc){
     q = q.startAfter(lastVisibleDoc);
   }
 
-  // 🔹 PREVIOUS PAGE
+  // 🔹 Previous page
   if(direction === "prev" && pageStack.length > 1){
     pageStack.pop();
     const prevDoc = pageStack[pageStack.length - 1];
@@ -646,13 +664,6 @@ function loadLogs(direction = "first") {
     snapshot.forEach(d=>{
 
       const l = d.data();
-
-      // 🔹 LOCAL SEARCH FILTER (Customer)
-      if(activeFilter.search &&
-        !(l.customer||"").toLowerCase().includes(activeFilter.search))
-        return;
-
-      /* ================= SLA COMPUTATION ================= */
 
       const created = l.created?.toDate?.() || null;
       let slaText = '—';
@@ -691,8 +702,6 @@ function loadLogs(direction = "first") {
         slaClass = 'sla-ok';
       }
 
-      /* ================= BUILD ROW ================= */
-
       const createdText =
         l.created?.toDate?.().toLocaleString() || "";
 
@@ -703,28 +712,27 @@ function loadLogs(direction = "first") {
       }
 
       tr.innerHTML = `
-      <td>${l.customer || ""}</td>
-      <td>${l.phone || ""}</td>
-      <td>${l.company || ""}</td>
-      <td>${l.disposition || ""}</td>
-      <td>${l.status || ""}</td>
-      <td>${l.agent || ""}</td>
-      <td>${createdText}</td>
-      <td><span class="${slaClass}">${slaText}</span></td>
-      <td>
-      <button onclick="viewNotes('${d.id}')">View</button>
-
-      ${isAdmin 
-  ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
-  : l.status !== "Resolved"
-    ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
-    : ''
-}
-      ${isAdmin
-        ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
-        : ''
-      }
-      </td>
+        <td>${l.customer || ""}</td>
+        <td>${l.phone || ""}</td>
+        <td>${l.company || ""}</td>
+        <td>${l.disposition || ""}</td>
+        <td>${l.status || ""}</td>
+        <td>${l.agent || ""}</td>
+        <td>${createdText}</td>
+        <td><span class="${slaClass}">${slaText}</span></td>
+        <td>
+          <button onclick="viewNotes('${d.id}')">View</button>
+          ${isAdmin 
+            ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
+            : l.status !== "Resolved"
+              ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
+              : ''
+          }
+          ${isAdmin
+            ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
+            : ''
+          }
+        </td>
       `;
 
       table.appendChild(tr);
@@ -733,7 +741,6 @@ function loadLogs(direction = "first") {
     renderPaginationControls();
   });
 }
-
 /* ================= PAGINATION CONTROLS ================= */
 
 function renderPaginationControls(){
@@ -975,6 +982,7 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 
 </body>
 </html>
+
 
 
 
