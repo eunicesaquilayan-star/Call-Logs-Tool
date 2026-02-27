@@ -433,7 +433,8 @@ function saveLog(){
 
   db.collection("logs").add({
 
-    customer:customerEl.value.trim(),
+    customer: customerEl.value.trim(),
+    customerLower: customerEl.value.trim().toLowerCase(),
     phone:phoneEl.value.trim(),
     ref:refEl.value.trim(),
     tool:toolEl.value,
@@ -629,8 +630,8 @@ function loadLogs(direction = "first") {
 
   // 🔹 Search (prefix search only)
   if(activeFilter.search){
-    q = q.where('customer','>=',activeFilter.search)
-         .where('customer','<=',activeFilter.search + '\uf8ff');
+  q = q.where('customerLower','>=',activeFilter.search)
+       .where('customerLower','<=',activeFilter.search + '\uf8ff');
   }
 
   q = q.limit(pageSize);
@@ -982,6 +983,7 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 
 </body>
 </html>
+
 
 
 
