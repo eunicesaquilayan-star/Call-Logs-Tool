@@ -461,7 +461,7 @@ function updateStatus(){
 
   if(!editLogId) return;
 
-  const newStatus=editStatusSelect.value;
+  const newStatus = document.getElementById("editStatusSelect").value;
 
   db.collection("logs").doc(editLogId).update({
     status:newStatus,
@@ -860,6 +860,21 @@ function exportCSV(){
   });
 
 }
+  function openEditModal(id){
+  editLogId = id;
+
+  db.collection("logs").doc(id).get().then(doc=>{
+    if(!doc.exists) return;
+
+    const l = doc.data();
+
+    // Set current status in dropdown
+    document.getElementById("editStatusSelect").value = l.status || "Open";
+
+    // Show modal
+    document.getElementById("statusEditModal").style.display = "flex";
+  });
+}
 
 /* ================= DELETE ================= */
 
@@ -875,6 +890,7 @@ function deleteLog(id){
   });
 
 }
+  
 
 
 // ADMIN ANALYTICS
@@ -959,6 +975,7 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 
 </body>
 </html>
+
 
 
 
