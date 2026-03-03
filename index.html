@@ -843,9 +843,6 @@ if(created && l.status !== "Resolved"){
     ${l.resolvedAt?.toDate?.().toLocaleString() || "—"}
   </td>
   <td><span class="${slaClass}">${slaText}</span></td>
-  <td style="max-width:200px; white-space:pre-line;">
-    ${(l.notes || "").replace(/</g,"&lt;")}
-  </td>
   <td>
   <button onclick="viewNotes('${d.id}')">View</button>
 
@@ -1301,6 +1298,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
