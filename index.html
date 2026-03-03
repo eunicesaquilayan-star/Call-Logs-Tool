@@ -52,6 +52,15 @@
 .toast.show{
   opacity:1;
   transform:translateY(0);
+
+  td {
+  vertical-align: top;
+}
+
+td:nth-child(10) {
+  max-width: 250px;
+  overflow-wrap: break-word;
+}
 }
 body{margin:0;font-family:Arial;background:var(--bg)}
 header{display:none;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
@@ -167,15 +176,16 @@ Action Taken:</textarea>
     <table>
       <thead>
        <tr>
-  <th>Customer</th>
+   <th>Customer</th>
   <th>Phone</th>
   <th>Company</th>
   <th>Disposition</th>
   <th>Status</th>
   <th>Agent</th>
   <th>Date</th>
+  <th>Resolved Time</th>
   <th>SLA</th>
-  <th>Notes</th>
+  <th>Actions</th>
 </tr>
 
       </thead>
@@ -520,6 +530,22 @@ async function saveLog(){
     alert(e.message);
   }
 }
+  function openEditModal(id){
+
+  editLogId = id;
+
+  db.collection("logs").doc(id).get().then(doc=>{
+    if(!doc.exists) return;
+
+    const data = doc.data();
+
+    document.getElementById("editStatusSelect").value =
+      data.status || "Open";
+
+    statusEditModal.style.display = "flex";
+  });
+
+}
   /* =========================================================
 STATUS UPDATE SAFE
 =========================================================*/
@@ -684,8 +710,15 @@ function loadLogs(direction = "first") {
   const table = document.getElementById('logTable');
   table.innerHTML = '';
 
-  let q = db.collection('logs')
-            .orderBy('created','desc');
+  let q = db.collection('logs');
+
+if(activeFilter.search){
+  q = q.orderBy('customerLower')
+       .where('customerLower','>=',activeFilter.search)
+       .orderBy('created','desc');
+} else {
+  q = q.orderBy('created','desc');
+}
 
   // 🔹 Company filter
   if(activeFilter.company){
@@ -709,7 +742,7 @@ function loadLogs(direction = "first") {
   // 🔹 Search (prefix search only)
   if(activeFilter.search){
   q = q.where('customerLower','>=',activeFilter.search)
-       .where('customerLower','<=',activeFilter.search + '\uf8ff');
+      
   }
 
   q = q.limit(pageSize);
@@ -791,31 +824,33 @@ function loadLogs(direction = "first") {
       }
 
       tr.innerHTML = `
-        <td>${l.customer || ""}</td>
-        <td>${l.phone || ""}</td>
-        <td>${l.company || ""}</td>
-        <td>${l.disposition || ""}</td>
-        <td>${l.status || ""}</td>
-        <td>${l.agent || ""}</td>
-        <td>${createdText}</td>
-        <td>
-        ${l.resolvedAt?.toDate?.().toLocaleString() || "—"}
-        </td>
-        <td><span class="${slaClass}">${slaText}</span></td>
-        <td>
-          <button onclick="viewNotes('${d.id}')">View</button>
-          ${isAdmin 
-            ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
-            : l.status !== "Resolved"
-              ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
-              : ''
-          }
-          ${isAdmin
-            ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
-            : ''
-          }
-        </td>
-      `;
+  <td>${l.customer || ""}</td>
+  <td>${l.phone || ""}</td>
+  <td>${l.company || ""}</td>
+  <td>${l.disposition || ""}</td>
+  <td>${l.status || ""}</td>
+  <td>${l.agent || ""}</td>
+  <td>${createdText}</td>
+  <td>
+    ${l.resolvedAt?.toDate?.().toLocaleString() || "—"}
+  </td>
+  <td><span class="${slaClass}">${slaText}</span></td>
+  <td style="max-width:200px; white-space:pre-line;">
+    ${(l.notes || "").replace(/</g,"&lt;")}
+  </td>
+  <td>
+    ${isAdmin 
+      ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
+      : l.status !== "Resolved"
+        ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
+        : ''
+    }
+    ${isAdmin
+      ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
+      : ''
+    }
+  </td>
+`;
 
       table.appendChild(tr);
     });
@@ -1231,6 +1266,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
