@@ -338,31 +338,28 @@ const adminPanel = document.getElementById("adminPanel")
 // LOGIN
 function login(){
   const email = document.getElementById("loginEmail").value.trim();
-  if(!email.endsWith('@supplylogic.com')) return alert('Only @supplylogic.com allowed');
-  const password=document.getElementById("loginPassword").value;
+  const password = document.getElementById("loginPassword").value;
 
-auth.signInWithEmailAndPassword(email,password)
-.catch(e=>alert(e.message));
+  if(!email){
+    alert("Email required");
+    return;
+  }
+
+  if(!password){
+    alert("Password required");
+    return;
+  }
+
+  if(!email.endsWith('@supplylogic.com')){
+    alert('Only @supplylogic.com allowed');
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email,password)
+  .catch(e=>{
+    alert("Login failed: " + e.message);
+  });
 }
-
-// ENTER KEY HANDLING (FIXED)
-document.addEventListener('keydown', e=>{
-  if(e.key !== 'Enter') return;
-
-  // LOGIN PAGE ONLY
-  if(!document.getElementById('loginPage').classList.contains('hidden')){
-    login();
-    return; // stop here
-  }
-
-  // PREVENT submit while typing notes
-  if(document.activeElement.tagName === 'TEXTAREA') return;
-
-  // APP PAGE ONLY
-  if(!document.getElementById('app').classList.contains('hidden')){
-    saveLog();
-  }
-});
 
 // LOGOUT
 function logout(){
@@ -1310,6 +1307,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
