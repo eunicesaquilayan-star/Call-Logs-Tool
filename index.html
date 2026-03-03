@@ -350,17 +350,19 @@ function login(){
     return;
   }
 
-  if(!email.endsWith('@supplylogic.com')){
-    alert('Only @supplylogic.com allowed');
+  if(!email.toLowerCase().endsWith("@supplylogic.com")){
+    alert("Only @supplylogic.com allowed");
     return;
   }
 
   auth.signInWithEmailAndPassword(email,password)
+  .then(()=>{
+    console.log("Login success");
+  })
   .catch(e=>{
     alert("Login failed: " + e.message);
   });
 }
-
 // LOGOUT
 function logout(){
   auth.signOut();
@@ -1307,6 +1309,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
