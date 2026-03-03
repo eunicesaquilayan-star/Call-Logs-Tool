@@ -19,7 +19,7 @@
   --card:#fff;
   --primary:#5b2be0;
   }
-  .sla-ok {
+ .sla-ok {
   color: #2e7d32;
   font-weight: bold;
 }
@@ -32,7 +32,15 @@
 .sla-breached {
   color: #b71c1c;
   font-weight: bold;
+}
 
+td{
+  vertical-align: top;
+}
+
+td:nth-child(10){
+  max-width: 250px;
+  overflow-wrap: break-word;
 }
 .toast{
   position:fixed;
@@ -53,14 +61,6 @@
   opacity:1;
   transform:translateY(0);
 
-  td {
-  vertical-align: top;
-}
-
-td:nth-child(10) {
-  max-width: 250px;
-  overflow-wrap: break-word;
-}
 }
 body{margin:0;font-family:Arial;background:var(--bg)}
 header{display:none;justify-content:space-between;align-items:center;padding:10px 20px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
@@ -150,15 +150,6 @@ Action Taken:</textarea>
     <button class="primary" onclick="saveLog()">Submit Log</button>
   </div>
   
-  <!-- AGENT DAILY STATS -->
-  <div class="card">
-    <h3>My Daily Stats</h3>
-    <input type="date" id="agentDay">
-    <button class="primary" onclick="loadAgentStats()">View</button>
-    <div id="agentStatsResult" style="margin-top:15px;"></div>
-    <div id="agentStats"></div>
-  </div>
-
   <!-- AGENT HISTORY -->
   <div class="card">
     <h3>History</h3>
@@ -259,27 +250,46 @@ Action Taken:</textarea>
 <div id="actionToast" class="toast"></div>
 
 <script>
+let isAdmin = false;
 let lastVisibleDoc = null;
 let firstVisibleDoc = null;
 let pageStack = [];
-let pageSize = 15;
+let pageSize = 20;
 let currentPage = 1;
 let editLogId = null;
 let submissionLock = false;
   
 firebase.initializeApp({
-  apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
+  apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzVQECC6yjOQ",
   authDomain:"call-logs-tool.firebaseapp.com",
   projectId:"call-logs-tool"
 });
-const auth=firebase.auth();
-const db=firebase.firestore();
-let isAdmin=false;
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+const notesModal = document.getElementById("notesModal");
+const statusEditModal = document.getElementById("statusEditModal");
+const fullEditModal = document.getElementById("fullEditModal");
+const modalText = document.getElementById("modalText");
+const loginPage = document.getElementById("loginPage");
+const app = document.getElementById("app");
+const appHeader = document.getElementById("appHeader");
+const userEmail = document.getElementById("userEmail");
+const agentForm = document.getElementById("agentForm");
+const adminPanel = document.getElementById("adminPanel")
 
   const analyticsCache = db.collection("analytics_cache");
 
 
   async function updateAnalyticsCache(log){
+    if(!auth.currentUser){
+ alert("Not authenticated");
+ return;
+}
+    if(!auth.currentUser.email.endsWith("@supplylogic.com")){
+  return;
+}
 
   const today=new Date().toISOString().slice(0,10);
 
@@ -317,8 +327,10 @@ let isAdmin=false;
       data.agents[log.agent].resolved++;
 
     // Disposition stats
-    data.dispositions[log.disposition] =
-      (data.dispositions[log.disposition]||0)+1;
+   if(log.disposition){
+  data.dispositions[log.disposition] =
+    (data.dispositions[log.disposition]||0)+1;
+}
 
     tx.set(cacheDoc,data,{merge:true});
   });
@@ -361,27 +373,31 @@ function logout(){
 auth.onAuthStateChanged(u=>{
   if(u){
     showToast('✅ Login successful',2000);
-    isAdmin = u?.email?.toLowerCase().startsWith('admin') || false;
+
+    isAdmin = u?.email?.toLowerCase() === "admin@supplylogic.com";
+
     loginPage.classList.add('hidden');
     app.classList.remove('hidden');
     appHeader.style.display='flex';
     userEmail.textContent = u.email;
-    
+
     pageStack = [];
-lastVisibleDoc = null;
-firstVisibleDoc = null;
-  
-      if(isAdmin){
-  adminPanel.classList.remove('hidden');
-  agentForm.classList.add('hidden');
-  document.querySelector('#agentDay').closest('.card').classList.add('hidden');
-        
-    populateCompanyFilter();
+    lastVisibleDoc = null;
+    firstVisibleDoc = null;
+
+    if(isAdmin){
+      adminPanel.classList.remove('hidden');
+      agentForm.classList.add('hidden');
+    } else {
+      adminPanel.classList.add('hidden');
+      agentForm.classList.remove('hidden');
     }
+
+    populateCompanyFilter();
     loadLogs();
-    
 
   } else {
+
     loginPage.classList.remove('hidden');
     app.classList.add('hidden');
     appHeader.style.display='none';
@@ -399,7 +415,7 @@ const companies={
     "American Airlines Credit Union","Applebee's","Brinker","Cash America",
     "Choice Hotels","Dave & Buster's / Main Event","Denny's",
     "Fogo de Chao","IHOP","Noodles & Company","Pei Wei",
-    "Pizza Hut","Steak N Shake","ZAXBYS","BAYADA","NAPA","Tomswatch"
+    "Pizza Hut","Steak N Shake","ZAXBYS","BAYADA","NAPA","Tomswatch","Buff City Soap"
   ],
   "Marketing Bench":[
     "23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth",
@@ -467,7 +483,7 @@ async function saveLog(){
 
   if(submissionLock) return;
   submissionLock=true;
-  setTimeout(()=>submissionLock=false,1500);
+  setTimeout(()=>submissionLock=false,3000);
 
   if(!auth.currentUser){
     alert("Not authenticated");
@@ -479,6 +495,10 @@ async function saveLog(){
     alert("Customer required");
     return;
   }
+  if(!customer || customer.length < 2){
+ alert("Invalid customer name");
+ return;
+}
 
   const phone=document.getElementById("phone").value.trim();
   const ref=document.getElementById("refId").value.trim();
@@ -517,10 +537,19 @@ async function saveLog(){
 
     await updateAnalyticsCache(logData);
 
-    document.getElementById("customer").value="";
-    document.getElementById("phone").value="";
-    document.getElementById("refId").value="";
-    document.getElementById("notes").value="Concern:\n\nAction Taken:";
+    const resetFields = [
+ "customer",
+ "phone",
+ "refId",
+ "notes"
+];
+
+resetFields.forEach(id=>{
+ const el=document.getElementById(id);
+ if(el) el.value="";
+});
+
+document.getElementById("notes").value="Concern:\n\nAction Taken:";
 
     showToast("✅ Log saved");
 
@@ -546,10 +575,58 @@ async function saveLog(){
   });
 
 }
+  async function rebuildTodayAnalyticsCache(){
+
+ const today = new Date().toISOString().slice(0,10);
+
+ const snap = await db.collection("logs")
+   .where("createdDay","==",today)
+   .get();
+
+ let cache = {
+   totalLogs:0,
+   resolved:0,
+   breached:0,
+   agents:{},
+   dispositions:{}
+ };
+
+ snap.forEach(doc=>{
+   const log = doc.data();
+
+   cache.totalLogs++;
+
+   if(log.status==="Resolved")
+     cache.resolved++;
+
+   if(!cache.agents[log.agent])
+     cache.agents[log.agent]={logs:0,resolved:0};
+
+   cache.agents[log.agent].logs++;
+
+   if(log.status==="Resolved")
+     cache.agents[log.agent].resolved++;
+
+   if(log.disposition){
+     cache.dispositions[log.disposition]=
+       (cache.dispositions[log.disposition]||0)+1;
+   }
+
+ });
+
+ await db.collection("analytics_cache")
+   .doc("daily_"+today)
+   .set(cache,{merge:true});
+}
   /* =========================================================
 STATUS UPDATE SAFE
 =========================================================*/
 function updateStatus(){
+
+  if(!auth.currentUser){
+ alert("Not authenticated");
+ return;
+}
 
   if(!editLogId) return;
 
@@ -567,80 +644,20 @@ function updateStatus(){
   }
 
   db.collection("logs").doc(editLogId).update(updateData)
-  .then(()=>{
+  .then(async ()=>{
 
-    showToast("✅ Status updated");
+  showToast("✅ Status updated");
 
-    closeStatusModal();
-    loadLogs();
+  await rebuildTodayAnalyticsCache();
 
-    editLogId=null;
+  closeStatusModal();
+  loadLogs();
+
+  editLogId=null;
 
   }).catch(e=>alert(e.message));
 }
-  function loadAgentStats(){
-
-  const day = document.getElementById('agentDay').value;
-  if(!day) return alert('Select a date');
-
-  const resultBox = document.getElementById('agentStatsResult');
-  resultBox.innerHTML = "Loading...";
-
-  const agentEmail = auth.currentUser?.email || "";
-
-  db.collection('logs')
-    .where('agent','==', agentEmail)
-    .where('createdDay','==', day)
-    .get()
-    .then(snapshot=>{
-
-      let total = 0;
-      let open = 0;
-      let resolved = 0;
-      let sameDayResolved = 0;
-
-      snapshot.forEach(doc=>{
-        const data = doc.data();
-        total++;
-
-        // Status count
-        if(data.status === "Resolved"){
-          resolved++;
-        } else {
-          open++;
-        }
-
-        // Same day resolution check
-        if(data.created?.toDate){
-
-          const createdDate = data.created
-            .toDate()
-            .toISOString()
-            .slice(0,10);
-
-          if(createdDate === day && data.status === "Resolved"){
-            sameDayResolved++;
-          }
-        }
-
-      });
-
-      resultBox.innerHTML = `
-        <div style="background:#f4f6f9;padding:15px;border-radius:8px">
-          <h3>Agent Daily Stats (${day})</h3>
-          <p><b>Total Logs:</b> ${total}</p>
-          <p><b>Open:</b> ${open}</p>
-          <p><b>Resolved:</b> ${resolved}</p>
-          <p><b>Resolved Same Day:</b> ${sameDayResolved}</p>
-        </div>
-      `;
-
-    })
-    .catch(e=>{
-      console.error(e);
-      resultBox.innerHTML = "Error loading stats";
-    });
-}
+  
 // SHOW TOAST
 function showToast(msg,duration=2500){
   const t=document.getElementById('actionToast'); t.textContent=msg; t.classList.add('show');
@@ -710,16 +727,16 @@ function loadLogs(direction = "first") {
   const table = document.getElementById('logTable');
   table.innerHTML = '';
 
-  let q = db.collection('logs');
+ let q = db.collection('logs');
 
 if(activeFilter.search){
-  q = q.orderBy('customerLower')
-       .where('customerLower','>=',activeFilter.search)
+  q = q.where('customerLower','>=',activeFilter.search)
+       .where('customerLower','<=',activeFilter.search + '\uf8ff')
+       .orderBy('customerLower')
        .orderBy('created','desc');
 } else {
   q = q.orderBy('created','desc');
 }
-
   // 🔹 Company filter
   if(activeFilter.company){
     q = q.where('company','==',activeFilter.company);
@@ -737,12 +754,6 @@ if(activeFilter.search){
 
   if(activeFilter.endDate){
     q = q.where('createdDay','<=',activeFilter.endDate);
-  }
-
-  // 🔹 Search (prefix search only)
-  if(activeFilter.search){
-  q = q.where('customerLower','>=',activeFilter.search)
-      
   }
 
   q = q.limit(pageSize);
@@ -778,37 +789,43 @@ if(activeFilter.search){
       const l = d.data();
 
       const created = l.created?.toDate?.() || null;
-      let slaText = '—';
-      let slaClass = '';
+let slaText = "⏳ Monitoring";
+let slaClass = "";
 
-      if (created && l.status !== 'Resolved') {
+if(created && l.status !== "Resolved"){
 
-        const SLA_HOURS = 48;
-        const elapsedMs = Date.now() - created.getTime();
-        const elapsedHours = elapsedMs / 36e5;
-        const remainingHours = SLA_HOURS - elapsedHours;
+  const SLA_HOURS = 48;
 
-        if (remainingHours <= 0) {
-          const over = Math.abs(remainingHours);
-          const h = Math.floor(over);
-          const m = Math.floor((over - h) * 60);
-          slaText = `❌ Breached by ${h}h ${m}m`;
-          slaClass = 'sla-breached';
-        }
-        else {
-          const h = Math.floor(remainingHours);
-          const m = Math.floor((remainingHours - h) * 60);
+  const elapsed = (Date.now() - created.getTime()) / 36e5;
+  const remaining = SLA_HOURS - elapsed;
 
-          if (remainingHours <= 8) {
-            slaText = `⚠️ ${h}h ${m}m remaining`;
-            slaClass = 'sla-warning';
-          } else {
-            slaText = `⏳ ${h}h ${m}m remaining`;
-            slaClass = 'sla-ok';
-          }
-        }
-      }
+  if(remaining <= 0){
 
+    const over = Math.abs(remaining);
+    const h = Math.floor(over);
+    const m = Math.floor((over-h)*60);
+
+    slaText = `🔥 BREACHED (${h}h ${m}m overdue)`;
+    slaClass = "sla-breached";
+
+  }
+  else if(remaining <= 8){
+
+    const h = Math.floor(remaining);
+    const m = Math.floor((remaining-h)*60);
+
+    slaText = `⚠️ Follow up in ${h}h ${m}m`;
+    slaClass = "sla-warning";
+
+  }
+  else {
+    // Hide noise for safe logs
+    slaText = `✅ SLA Safe`;
+    slaClass = "sla-ok";
+  }
+}
+
+    
       if (l.status === 'Resolved') {
         slaText = '✅ Resolved';
         slaClass = 'sla-ok';
@@ -839,17 +856,20 @@ if(activeFilter.search){
     ${(l.notes || "").replace(/</g,"&lt;")}
   </td>
   <td>
-    ${isAdmin 
-      ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
-      : l.status !== "Resolved"
-        ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
-        : ''
-    }
-    ${isAdmin
-      ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
+  <button onclick="viewNotes('${d.id}')">View</button>
+
+  ${isAdmin 
+    ? `<button onclick="openFullEditModal('${d.id}')">Edit</button>`
+    : l.status !== "Resolved"
+      ? `<button onclick="openEditModal('${d.id}')">Edit Status</button>`
       : ''
-    }
-  </td>
+  }
+
+  ${isAdmin
+    ? `<button onclick="deleteLog('${d.id}')">Delete</button>`
+    : ''
+  }
+</td>
 `;
 
       table.appendChild(tr);
@@ -890,20 +910,22 @@ function closeStatusModal(){
 
 function viewNotes(id){
 
+  if(!id) return;
+
   db.collection("logs").doc(id).get().then(doc=>{
 
     if(!doc.exists) return;
 
-    const notes=doc.data().notes||"";
+    const notes = doc.data().notes || "";
 
-    const [concernPart,actionPart]=notes.split("Action Taken:");
+    const [concernPart, actionPart] = notes.split("Action Taken:");
 
-    modalText.innerHTML=`
+    modalText.innerHTML = `
     <b>Concern</b><br><br>
-    ${concernPart?.replace("Concern:","").trim()||""}
+    ${concernPart?.replace("Concern:","").trim() || ""}
     <br><br>
     <b>Action Taken</b><br><br>
-    ${actionPart?.trim()||""}
+    ${actionPart?.trim() || ""}
     `;
 
     notesModal.style.display="flex";
@@ -937,6 +959,11 @@ function closeFullEditModal(){
 }
 
 function updateFullLog(){
+ if(!auth.currentUser){
+    alert("Not authenticated");
+    return;
+  }
+
   if(!editLogId) return;
 
   db.collection("logs").doc(editLogId).update({
@@ -948,13 +975,22 @@ function updateFullLog(){
     status: editFullStatus.value,
     notes: editNotes.value.trim(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(()=>{
+  })
+  .then(async ()=>{
+
     showToast("✅ Log fully updated");
+
+    await rebuildTodayAnalyticsCache();
+
     closeFullEditModal();
     loadLogs();
+
     editLogId = null;
-  }).catch(e=>alert(e.message));
+
+  })
+  .catch(e=>alert(e.message));
 }
+  
 /* =========================================================
 CSV EXPORT — FULLY SAFE VERSION
 =========================================================*/
@@ -962,7 +998,6 @@ async function exportCSV(){
 
   captureFilters();
 
-  let pageSize = 500;
   let q = db.collection("logs")
             .orderBy("created","desc")
             .limit(pageSize);
@@ -1072,18 +1107,27 @@ async function exportCSV(){
 
 function deleteLog(id){
 
+  if(!auth.currentUser){
+    alert("Not authenticated");
+    return;
+  }
+
+  if(!isAdmin){
+    alert("Unauthorized");
+    return;
+  }
+
   if(!confirm("Delete this log?")) return;
 
-  db.collection("logs").doc(id).delete().then(()=>{
+  db.collection("logs").doc(id).delete().then(async ()=>{
 
     showToast("🗑️ Log deleted");
+
+    await rebuildTodayAnalyticsCache();
+
     loadLogs();
-
   });
-
 }
-  
-
 
 // ADMIN ANALYTICS
 async function loadAdminAnalytics(){
@@ -1266,6 +1310,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
