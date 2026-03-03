@@ -266,6 +266,53 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 let isAdmin=false;
 
+  const analyticsCache = db.collection("analytics_cache");
+
+
+  async function updateAnalyticsCache(log){
+
+  const today=new Date().toISOString().slice(0,10);
+
+  const cacheDoc=analyticsCache.doc("daily_"+today);
+
+  await db.runTransaction(async tx=>{
+
+    const snap=await tx.get(cacheDoc);
+
+    let data=snap.exists ? snap.data() : {
+      totalLogs:0,
+      resolved:0,
+      breached:0,
+      agents:{},
+      dispositions:{}
+    };
+
+    data.totalLogs++;
+
+    if(log.status==="Resolved")
+      data.resolved++;
+
+    // SLA check (48h rule)
+   // do not calculate SLA at write time
+// breach should be computed dynamically in analytics
+
+    // Agent leaderboard
+    if(!data.agents[log.agent]){
+      data.agents[log.agent]={logs:0,resolved:0};
+    }
+
+    data.agents[log.agent].logs++;
+
+    if(log.status==="Resolved")
+      data.agents[log.agent].resolved++;
+
+    // Disposition stats
+    data.dispositions[log.disposition] =
+      (data.dispositions[log.disposition]||0)+1;
+
+    tx.set(cacheDoc,data,{merge:true});
+  });
+}
 // LOGIN
 function login(){
   const email = document.getElementById("loginEmail").value.trim();
@@ -318,7 +365,8 @@ firstVisibleDoc = null;
   adminPanel.classList.remove('hidden');
   agentForm.classList.add('hidden');
   document.querySelector('#agentDay').closest('.card').classList.add('hidden');
-
+        
+    populateCompanyFilter();
     }
     loadLogs();
     
@@ -405,7 +453,7 @@ function checkDispositionReason(){
 
 /* ================= SAVE LOG ================= */
 
-function saveLog(){
+async function saveLog(){
 
   if(submissionLock) return;
   submissionLock=true;
@@ -416,53 +464,62 @@ function saveLog(){
     return;
   }
 
-  const customerEl=document.getElementById("customer");
-  const phoneEl=document.getElementById("phone");
-  const refEl=document.getElementById("refId");
-  const toolEl=document.getElementById("tool");
-  const companyEl=document.getElementById("company");
-  const dispositionEl=document.getElementById("disposition");
-  const statusEl=document.getElementById("status");
-  const notesEl=document.getElementById("notes");
-  const amReason=document.getElementById("amReason");
-
-  if(!customerEl.value.trim()){
+  const customer=document.getElementById("customer").value.trim();
+  if(!customer){
     alert("Customer required");
     return;
   }
 
-  db.collection("logs").add({
+  const phone=document.getElementById("phone").value.trim();
+  const ref=document.getElementById("refId").value.trim();
+  const tool=document.getElementById("tool").value;
+  const company=document.getElementById("company").value;
+  const disposition=document.getElementById("disposition").value;
+  const amReason=document.getElementById("amReason").value;
+  const status=document.getElementById("status").value || "Open";
+  const notes=document.getElementById("notes").value.trim();
 
-    customer: customerEl.value.trim(),
-    customerLower: customerEl.value.trim().toLowerCase(),
-    phone:phoneEl.value.trim(),
-    ref:refEl.value.trim(),
-    tool:toolEl.value,
-    company:companyEl.value,
-    disposition:dispositionEl.value,
-    amReason:amReason.value,
-    status:statusEl.value||"Open",
-    notes:notesEl.value.trim(),
-    agent:auth.currentUser?.email || "",
+  const agent=auth.currentUser.email;
 
-   created:firebase.firestore.FieldValue.serverTimestamp(),
-    createdDay:new Date().toISOString().slice(0,10)
+  const createdDay=new Date().toISOString().slice(0,10);
 
-  }).then(()=>{
+  const logData={
+    customer,
+    customerLower:customer.toLowerCase(),
+    phone,
+    ref,
+    tool,
+    company,
+    disposition,
+    amReason,
+    status,
+    notes,
+    agent,
+    createdDay,
+    created:firebase.firestore.FieldValue.serverTimestamp()
+  };
 
-    customerEl.value="";
-    phoneEl.value="";
-    refEl.value="";
-    notesEl.value="Concern:\n\nAction Taken:";
+  try{
+
+    const docRef=await db.collection("logs").add(logData);
+
+    // ⭐ Update Analytics Cache (NO SCAN REQUIRED)
+
+    await updateAnalyticsCache(logData);
+
+    document.getElementById("customer").value="";
+    document.getElementById("phone").value="";
+    document.getElementById("refId").value="";
+    document.getElementById("notes").value="Concern:\n\nAction Taken:";
 
     showToast("✅ Log saved");
 
     loadLogs();
 
-  });
-
+  }catch(e){
+    alert(e.message);
+  }
 }
-
   /* =========================================================
 STATUS UPDATE SAFE
 =========================================================*/
@@ -840,48 +897,79 @@ function updateFullLog(){
   }).catch(e=>alert(e.message));
 }
 /* =========================================================
-CSV EXPORT SAFE
+CSV EXPORT — FULLY SAFE VERSION
 =========================================================*/
 function exportCSV(){
 
-  db.collection("logs").get().then(snapshot=>{
+  captureFilters(); // ensure latest filters applied
 
-    let csv="Customer,Phone,Company,Disposition,Status,Agent,Date,Notes\n";
+  let q = db.collection("logs").orderBy("created","desc");
+
+  if(activeFilter.company)
+    q = q.where('company','==',activeFilter.company);
+
+  if(activeFilter.status)
+    q = q.where('status','==',activeFilter.status);
+
+  if(activeFilter.startDate)
+    q = q.where('createdDay','>=',activeFilter.startDate);
+
+  if(activeFilter.endDate)
+    q = q.where('createdDay','<=',activeFilter.endDate);
+
+  q.get().then(snapshot=>{
+
+    let csvRows = [];
+
+    const headers = [
+      "Customer","Phone","Company","Disposition",
+      "Status","Agent","Date","Notes"
+    ];
+
+    csvRows.push(headers.join(","));
+
+    function escapeCSV(value){
+      if(value === null || value === undefined) return '""';
+      let str = value.toString();
+      str = str.replace(/\r?\n|\r/g, " ");
+      str = str.replace(/"/g, '""');
+      return `"${str}"`;
+    }
 
     snapshot.forEach(doc=>{
+      const l = doc.data();
+      const created = l.created?.toDate?.().toLocaleString() || "";
 
-      const l=doc.data();
-      const created=l.created?.toDate?.() || "";
+      const row = [
+        escapeCSV(l.customer),
+        escapeCSV(l.phone),
+        escapeCSV(l.company),
+        escapeCSV(l.disposition),
+        escapeCSV(l.status),
+        escapeCSV(l.agent),
+        escapeCSV(created),
+        escapeCSV(l.notes)
+      ];
 
-      csv+=`${l.customer||""},${l.phone||""},${l.company||""},${l.disposition||""},${l.status||""},${l.agent||""},${created},"${(l.notes||"").replace(/\n/g," ")}"\n`;
-
+      csvRows.push(row.join(","));
     });
 
-    const blob=new Blob([csv],{type:"text/csv"});
-    const url=URL.createObjectURL(blob);
+    const blob = new Blob([csvRows.join("\n")],
+      { type: "text/csv;charset=utf-8;" });
 
-    const a=document.createElement("a");
-    a.href=url;
-    a.download="call_logs_report.csv";
-    a.click();
+    const url = URL.createObjectURL(blob);
 
-  });
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      `call_logs_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
 
-}
-  function openEditModal(id){
-  editLogId = id;
+    URL.revokeObjectURL(url);
 
-  db.collection("logs").doc(id).get().then(doc=>{
-    if(!doc.exists) return;
+    showToast("📄 CSV Export Complete");
 
-    const l = doc.data();
-
-    // Set current status in dropdown
-    document.getElementById("editStatusSelect").value = l.status || "Open";
-
-    // Show modal
-    document.getElementById("statusEditModal").style.display = "flex";
-  });
+  }).catch(e=>alert(e.message));
 }
 
 /* ================= DELETE ================= */
@@ -902,80 +990,62 @@ function deleteLog(id){
 
 
 // ADMIN ANALYTICS
-function loadAdminAnalytics(){
-  let q=db.collection('logs');
+async function loadAdminAnalytics(){
 
   const start=document.getElementById('adminStartDate').value;
   const end=document.getElementById('adminEndDate').value;
 
-  if(start) q=q.where('createdDay','>=',start);
-  if(end) q=q.where('createdDay','<=',end);
+  const today=new Date().toISOString().slice(0,10);
 
-  q.get().then(s=>{
-    const agentStats={}, dispositionStats={}, slaDispStats={};
-    let resolvedOnTime=0, breached=0, openBreached=0;
+  let cacheQuery="daily_"+today;
 
-    s.forEach(d=>{
-      const l = d.data();
-      const created = l.created ? l.created.toDate() : null;
-      const hours = created ? (Date.now() - created.getTime()) / 36e5 : 0;
+  if(start) cacheQuery="daily_"+start;
 
-      // Leaderboard
-      const agentName = l.agent || "Unknown";
+  const snap=await analyticsCache.doc(cacheQuery).get();
 
-if(!agentStats[agentName])
-    agentStats[agentName]={logs:0,resolved:0};
+  if(!snap.exists){
+    analytics.innerHTML="No analytics cache available.";
+    return;
+  }
 
-agentStats[agentName].logs++;
+  const data=snap.data();
 
-if(l.status==='Resolved')
-    agentStats[agentName].resolved++;
+  // Leaderboard
+  let lb=`<h4>Agent Activity Leaderboard</h4>
+  <table>
+  <tr>
+  <th>Agent</th><th>Logs</th><th>Resolved</th><th>%</th>
+  </tr>`;
 
-      // Disposition usage
-     const disp = l.disposition || "Unknown";
-dispositionStats[disp]=(dispositionStats[disp]||0)+1;
+  Object.entries(data.agents||{})
+  .sort((a,b)=>b[1].logs-a[1].logs)
+  .forEach(([agent,v])=>{
+    const pct=((v.resolved/v.logs)*100||0).toFixed(1);
 
-      // SLA tracking
-     if(hours <= 48){
-  if(l.status === 'Resolved')
-    resolvedOnTime++;
-}
-else{
-  breached++;
-
-  const disp = l.disposition || "Unknown";
-  slaDispStats[disp]=(slaDispStats[disp]||0)+1;
-
-  if(l.status!=="Resolved")
-    openBreached++;
-}
-});
-
-    // Leaderboard
-    let lb=`<h4>Agent Activity Leaderboard</h4>
-    <table><tr><th>Agent</th><th>Logs</th><th>Resolved</th><th>%</th></tr>`;
-
-    Object.entries(agentStats)
-    .sort((a,b)=>b[1].logs-a[1].logs)
-    .forEach(([a,v])=>{
-      const pct=((v.resolved/v.logs)*100||0).toFixed(1);
-      lb+=`<tr><td>${a}</td><td>${v.logs}</td><td>${v.resolved}</td><td>${pct}%</td></tr>`;
-    });
-
-    lb+='</table>';
-    leaderboard.innerHTML=lb;
-
-    // SLA Analytics
-    analytics.innerHTML=`
-<h4>SLA REPORT</h4>
-Resolved On Time: ${resolvedOnTime}<br>
-Breached: ${breached}<br>
-Open / Follow-up Breached: ${openBreached}
-
-<h4 style="margin-top:15px">Disposition Causing Breaches</h4>
-${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
-`;
+    lb+=`<tr>
+      <td>${agent}</td>
+      <td>${v.logs}</td>
+      <td>${v.resolved}</td>
+      <td>${pct}%</td>
+    </tr>`;
   });
+
+  lb+="</table>";
+
+  analytics.innerHTML=`
+    <h4>SLA REPORT</h4>
+    Total Logs: ${data.totalLogs||0}<br>
+    Resolved: ${data.resolved||0}<br>
+    Breached: ${data.breached||0}
+
+    <h4 style="margin-top:20px">Disposition Stats</h4>
+    ${Object.entries(data.dispositions||{})
+      .map(d=>`${d[0]} : ${d[1]}`)
+      .join("<br>")}
+
+    <br><br>
+    ${lb}
+  `;
 }
 
 
@@ -983,6 +1053,7 @@ ${Object.entries(slaDispStats).map(d=>`${d[0]}: ${d[1]}`).join('<br>')}
 
 </body>
 </html>
+
 
 
 
