@@ -527,12 +527,21 @@ function updateStatus(){
 
   if(!editLogId) return;
 
-  const newStatus = document.getElementById("editStatusSelect").value;
+  const newStatus =
+    document.getElementById("editStatusSelect").value;
 
-  db.collection("logs").doc(editLogId).update({
+  const updateData = {
     status:newStatus,
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-  }).then(()=>{
+  };
+
+  if(newStatus === "Resolved"){
+    updateData.resolvedAt =
+      firebase.firestore.FieldValue.serverTimestamp();
+  }
+
+  db.collection("logs").doc(editLogId).update(updateData)
+  .then(()=>{
 
     showToast("✅ Status updated");
 
@@ -543,55 +552,67 @@ function updateStatus(){
 
   }).catch(e=>alert(e.message));
 }
-
   function loadAgentStats(){
-  const day=document.getElementById('agentDay').value;
+
+  const day = document.getElementById('agentDay').value;
   if(!day) return alert('Select a date');
 
-  const resultBox=document.getElementById('agentStatsResult');
-  resultBox.innerHTML="Loading...";
+  const resultBox = document.getElementById('agentStatsResult');
+  resultBox.innerHTML = "Loading...";
+
+  const agentEmail = auth.currentUser?.email || "";
 
   db.collection('logs')
-    .where('agent','==',auth.currentUser?.email || "")
-    .where('createdDay','==',day)
+    .where('agent','==', agentEmail)
+    .where('createdDay','==', day)
     .get()
     .then(snapshot=>{
 
-      let total=0;
-      let open=0;
-      let resolved=0;
-      let sameDayResolved=0;
+      let total = 0;
+      let open = 0;
+      let resolved = 0;
+      let sameDayResolved = 0;
 
       snapshot.forEach(doc=>{
-        const data=doc.data();
+        const data = doc.data();
         total++;
 
-        if(data.status==="Resolved"){
+        // Status count
+        if(data.status === "Resolved"){
           resolved++;
-
-          if(data.created && data.created.toDate){
-            const createdDate=data.created.toDate()
-              .toISOString().slice(0,10);
-
-            if(createdDate===day){
-              sameDayResolved++;
-            }
-          }
-
-        }else{
+        } else {
           open++;
         }
+
+        // Same day resolution check
+        if(data.created?.toDate){
+
+          const createdDate = data.created
+            .toDate()
+            .toISOString()
+            .slice(0,10);
+
+          if(createdDate === day && data.status === "Resolved"){
+            sameDayResolved++;
+          }
+        }
+
       });
 
-      resultBox.innerHTML=`
-      <div style="background:#f4f6f9;padding:15px;border-radius:8px">
-        <h3>Agent Daily Stats (${day})</h3>
-        <p><b>Total Logs:</b> ${total}</p>
-        <p><b>Open:</b> ${open}</p>
-        <p><b>Resolved:</b> ${resolved}</p>
-        <p><b>Resolved Same Day:</b> ${sameDayResolved}</p>
-      </div>
+      resultBox.innerHTML = `
+        <div style="background:#f4f6f9;padding:15px;border-radius:8px">
+          <h3>Agent Daily Stats (${day})</h3>
+          <p><b>Total Logs:</b> ${total}</p>
+          <p><b>Open:</b> ${open}</p>
+          <p><b>Resolved:</b> ${resolved}</p>
+          <p><b>Resolved Same Day:</b> ${sameDayResolved}</p>
+        </div>
       `;
+
+    })
+    .catch(e=>{
+      console.error(e);
+      resultBox.innerHTML = "Error loading stats";
     });
 }
 // SHOW TOAST
@@ -777,6 +798,9 @@ function loadLogs(direction = "first") {
         <td>${l.status || ""}</td>
         <td>${l.agent || ""}</td>
         <td>${createdText}</td>
+        <td>
+        ${l.resolvedAt?.toDate?.().toLocaleString() || "—"}
+        </td>
         <td><span class="${slaClass}">${slaText}</span></td>
         <td>
           <button onclick="viewNotes('${d.id}')">View</button>
@@ -899,11 +923,14 @@ function updateFullLog(){
 /* =========================================================
 CSV EXPORT — FULLY SAFE VERSION
 =========================================================*/
-function exportCSV(){
+async function exportCSV(){
 
-  captureFilters(); // ensure latest filters applied
+  captureFilters();
 
-  let q = db.collection("logs").orderBy("created","desc");
+  let pageSize = 500;
+  let q = db.collection("logs")
+            .orderBy("created","desc")
+            .limit(pageSize);
 
   if(activeFilter.company)
     q = q.where('company','==',activeFilter.company);
@@ -917,59 +944,93 @@ function exportCSV(){
   if(activeFilter.endDate)
     q = q.where('createdDay','<=',activeFilter.endDate);
 
-  q.get().then(snapshot=>{
+  let csvBuffer = [];
 
-    let csvRows = [];
+  const headers = [
+    "Customer","Phone","Company","Disposition",
+    "Status","Agent","Date","Notes",
+    "Log Created Time",
+    "Resolved Time",
+    "Lifecycle Hours"
+  ];
 
-    const headers = [
-      "Customer","Phone","Company","Disposition",
-      "Status","Agent","Date","Notes"
-    ];
+  csvBuffer.push(headers.join(","));
 
-    csvRows.push(headers.join(","));
+  let lastDoc = null;
 
-    function escapeCSV(value){
-      if(value === null || value === undefined) return '""';
-      let str = value.toString();
-      str = str.replace(/\r?\n|\r/g, " ");
-      str = str.replace(/"/g, '""');
-      return `"${str}"`;
+  function escapeCSV(value){
+    if(!value) return '""';
+    let str = value.toString();
+    str = str.replace(/\r?\n|\r/g," ");
+    str = str.replace(/"/g,'""');
+    return `"${str}"`;
+  }
+
+  while(true){
+
+    let query = q;
+
+    if(lastDoc){
+      query = query.startAfter(lastDoc);
     }
 
-    snapshot.forEach(doc=>{
-      const l = doc.data();
-      const created = l.created?.toDate?.().toLocaleString() || "";
+    const snap = await query.get();
 
-      const row = [
+    if(snap.empty) break;
+
+    snap.forEach(doc=>{
+
+      const l = doc.data();
+
+      const created = l.created?.toDate?.() || null;
+
+      const resolvedTime = l.resolvedAt?.toDate?.() || null;
+
+      let lifecycleHours = "";
+
+      if(created && resolvedTime){
+        lifecycleHours =
+          ((resolvedTime - created)/36e5).toFixed(2);
+      }
+     if(csvBuffer.length > 50000){
+  alert("Export size too large");
+  return;
+}
+
+      csvBuffer.push([
         escapeCSV(l.customer),
         escapeCSV(l.phone),
         escapeCSV(l.company),
         escapeCSV(l.disposition),
         escapeCSV(l.status),
         escapeCSV(l.agent),
-        escapeCSV(created),
-        escapeCSV(l.notes)
-      ];
+        escapeCSV(l.created?.toDate?.().toLocaleString()),
+        escapeCSV(resolvedTime?.toLocaleString()),
+        escapeCSV(lifecycleHours)
+      ].join(","));
 
-      csvRows.push(row.join(","));
     });
 
-    const blob = new Blob([csvRows.join("\n")],
-      { type: "text/csv;charset=utf-8;" });
+    lastDoc = snap.docs[snap.docs.length-1];
+  }
 
-    const url = URL.createObjectURL(blob);
+  const blob = new Blob(
+    [csvBuffer.join("\n")],
+    {type:"text/csv;charset=utf-8;"}
+  );
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download =
-      `call_logs_${new Date().toISOString().slice(0,10)}.csv`;
-    link.click();
+  const url = URL.createObjectURL(blob);
 
-    URL.revokeObjectURL(url);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download =
+    `call_logs_stream_${new Date().toISOString().slice(0,10)}.csv`;
 
-    showToast("📄 CSV Export Complete");
+  link.click();
 
-  }).catch(e=>alert(e.message));
+  URL.revokeObjectURL(url);
+
+  showToast("📄 Streaming CSV Export Completed");
 }
 
 /* ================= DELETE ================= */
@@ -992,67 +1053,185 @@ function deleteLog(id){
 // ADMIN ANALYTICS
 async function loadAdminAnalytics(){
 
-  const start=document.getElementById('adminStartDate').value;
-  const end=document.getElementById('adminEndDate').value;
+  const start = document.getElementById('adminStartDate').value;
+  const end = document.getElementById('adminEndDate').value;
+  const analytics = document.getElementById("analytics");
 
-  const today=new Date().toISOString().slice(0,10);
+  analytics.innerHTML = "Loading analytics...";
 
-  let cacheQuery="daily_"+today;
+  let dateList = [];
 
-  if(start) cacheQuery="daily_"+start;
+  if(start && end){
 
-  const snap=await analyticsCache.doc(cacheQuery).get();
+    let cur = new Date(start);
+    const endDate = new Date(end);
 
-  if(!snap.exists){
-    analytics.innerHTML="No analytics cache available.";
-    return;
+    while(cur <= endDate){
+      dateList.push(cur.toISOString().slice(0,10));
+      cur.setDate(cur.getDate()+1);
+    }
+
+  } else if(start){
+    dateList = [start];
+  } else {
+    dateList = [new Date().toISOString().slice(0,10)];
   }
+    if(dateList.length > 10){
+  alert("Date range too large. Please select max 10 days.");
+  return;
+}
 
-  const data=snap.data();
+  // ===============================
+  // SINGLE FIRESTORE SCAN ONLY
+  // ===============================
 
-  // Leaderboard
-  let lb=`<h4>Agent Activity Leaderboard</h4>
-  <table>
-  <tr>
-  <th>Agent</th><th>Logs</th><th>Resolved</th><th>%</th>
-  </tr>`;
+  const logsSnap = await db.collection("logs")
+    .where("createdDay","in",dateList)
+    .get();
 
-  Object.entries(data.agents||{})
-  .sort((a,b)=>b[1].logs-a[1].logs)
-  .forEach(([agent,v])=>{
-    const pct=((v.resolved/v.logs)*100||0).toFixed(1);
+  let totalLogs = 0;
+  let resolved = 0;
+  let breached = 0;
 
-    lb+=`<tr>
-      <td>${agent}</td>
-      <td>${v.logs}</td>
-      <td>${v.resolved}</td>
-      <td>${pct}%</td>
-    </tr>`;
+  let dispositionMap = {};
+  let leaderboardMap = {};
+
+  let lifecycleTotal = 0;
+  let lifecycleCount = 0;
+
+  const SLA_HOURS = 48;
+
+  logsSnap.forEach(doc=>{
+
+    const l = doc.data();
+
+    totalLogs++;
+
+    if(l.status === "Resolved"){
+      resolved++;
+    }
+
+    // disposition stats
+    if(l.disposition){
+      dispositionMap[l.disposition] =
+        (dispositionMap[l.disposition]||0)+1;
+    }
+
+    // leaderboard aggregation
+    if(l.agent){
+      if(!leaderboardMap[l.agent]){
+        leaderboardMap[l.agent] = {logs:0,resolved:0};
+      }
+
+      leaderboardMap[l.agent].logs++;
+
+      if(l.status === "Resolved"){
+        leaderboardMap[l.agent].resolved++;
+      }
+    }
+
+    // SLA breach check + lifecycle
+
+    const created = l.created?.toDate?.();
+    const resolvedAt = l.resolvedAt?.toDate?.();
+
+    if(!created) return;
+
+    const endTime = resolvedAt || new Date();
+    const lifecycleHours =
+      (endTime - created) / 36e5;
+
+    lifecycleTotal += lifecycleHours;
+    lifecycleCount++;
+
+    if(l.status !== "Resolved" && lifecycleHours > SLA_HOURS){
+      breached++;
+    }
+
   });
 
-  lb+="</table>";
+  // ===============================
+  // Compute Final Metrics
+  // ===============================
 
-  analytics.innerHTML=`
+  const avgLifecycle =
+    lifecycleCount > 0
+    ? (lifecycleTotal / lifecycleCount).toFixed(2)
+    : "0";
+
+  // ===============================
+  // Render Leaderboard
+  // ===============================
+
+  let lb = `
+    <h4>Agent Activity Leaderboard</h4>
+    <table>
+    <tr>
+      <th>Agent</th>
+      <th>Logs</th>
+      <th>Resolved</th>
+      <th>Resolution %</th>
+    </tr>
+  `;
+
+  Object.entries(leaderboardMap)
+    .sort((a,b)=>b[1].logs-a[1].logs)
+    .forEach(([agent,v])=>{
+
+      const pct =
+        v.logs > 0
+        ? ((v.resolved/v.logs)*100).toFixed(1)
+        : "0";
+
+      lb += `
+        <tr>
+          <td>${agent}</td>
+          <td>${v.logs}</td>
+          <td>${v.resolved}</td>
+          <td>${pct}%</td>
+        </tr>
+      `;
+    });
+
+  lb += "</table>";
+
+  // ===============================
+  // Final Dashboard Render
+  // ===============================
+
+  analytics.innerHTML = `
     <h4>SLA REPORT</h4>
-    Total Logs: ${data.totalLogs||0}<br>
-    Resolved: ${data.resolved||0}<br>
-    Breached: ${data.breached||0}
+    Total Logs : ${totalLogs}<br>
+    Resolved : ${resolved}<br>
+    Breached : ${breached}<br>
+    Average Resolution Time : ${avgLifecycle} hours
 
     <h4 style="margin-top:20px">Disposition Stats</h4>
-    ${Object.entries(data.dispositions||{})
+    ${
+      Object.entries(dispositionMap)
       .map(d=>`${d[0]} : ${d[1]}`)
-      .join("<br>")}
+      .join("<br>")
+    }
 
     <br><br>
     ${lb}
   `;
 }
+  
+  function calculateLifecycleHours(created, resolvedAt){
 
+  if(!created) return "";
+
+  const end = resolvedAt || new Date();
+
+  return ((end - created)/36e5).toFixed(2);
+}
 
 </script>
 
 </body>
 </html>
+
 
 
 
