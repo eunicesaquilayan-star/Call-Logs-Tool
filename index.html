@@ -260,9 +260,9 @@ let editLogId = null;
 let submissionLock = false;
   
 firebase.initializeApp({
-  apiKey:"AIzaSyBEbq_d9nGXFLNdHaWICDfOzVQECC6yjOQ",
-  authDomain:"call-logs-tool.firebaseapp.com",
-  projectId:"call-logs-tool"
+  apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
+  authDomain: "call-logs-tool.firebaseapp.com",
+  projectId: "call-logs-tool",
 });
 
 const auth = firebase.auth();
@@ -340,25 +340,17 @@ function login(){
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
 
-  if(!email){
-    alert("Email required");
-    return;
-  }
-
-  if(!password){
-    alert("Password required");
+  if(!email || !password){
+    alert("Email and password required");
     return;
   }
 
   if(!email.toLowerCase().endsWith("@supplylogic.com")){
-    alert("Only @supplylogic.com allowed");
+    alert("Only supplylogic email allowed");
     return;
   }
 
   auth.signInWithEmailAndPassword(email,password)
-  .then(()=>{
-    console.log("Login success");
-  })
   .catch(e=>{
     alert("Login failed: " + e.message);
   });
@@ -1309,6 +1301,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
