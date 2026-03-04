@@ -126,7 +126,7 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
   <option>Other Department</option>
   <option>Refer to AM</option>
 </select>
-    <select id="amReason" class="hidden">
+    <select id="amReason" class="hidden" onchange="checkAMOther()">
   <option value="">Select AM Reason</option>
   <option>Account creation</option>
   <option>Website account transfer to a new manager, director, etc</option>
@@ -462,12 +462,15 @@ function loadCompanies() {
 function checkDispositionReason(){
   const disp = document.getElementById('disposition').value;
   const amBox = document.getElementById('amReason');
+  const otherBox = document.getElementById('amReasonOther');
 
   if(disp === 'Refer to AM'){
     amBox.classList.remove('hidden');
   } else {
     amBox.classList.add('hidden');
     amBox.value='';
+    otherBox.classList.add('hidden');
+    otherBox.value='';
   }
 }
   function checkAMOther(){
@@ -1329,6 +1332,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
