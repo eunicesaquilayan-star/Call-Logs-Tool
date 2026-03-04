@@ -129,15 +129,19 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
     <select id="amReason" class="hidden">
   <option value="">Select AM Reason</option>
   <option>Account creation</option>
-  <option>Account transfer to a new manager, director, etc</option>
+  <option>Website account transfer to a new manager, director, etc</option>
   <option>Back order</option>
   <option>Inventory</option>
   <option>Order Pending</option>
   <option>Order Approval</option>
-  <option>Website update</option>
+  <option>Website update/issue</option>
+  <option>Cancellation</option>
   <option>Other</option>
-  <option>Disconnect/ GhostCall</option>
 </select>
+
+    <input id="amReasonOther" 
+       class="hidden" 
+       placeholder="Enter specific AM reason">
 
     <select id="status">
       <option>Open</option>
@@ -466,6 +470,17 @@ function checkDispositionReason(){
     amBox.value='';
   }
 }
+  function checkAMOther(){
+  const reason = document.getElementById("amReason").value;
+  const otherInput = document.getElementById("amReasonOther");
+
+  if(reason === "Other"){
+    otherInput.classList.remove("hidden");
+  } else {
+    otherInput.classList.add("hidden");
+    otherInput.value = "";
+  }
+}
 
 
 /* ================= SAVE LOG ================= */
@@ -496,7 +511,18 @@ async function saveLog(){
   const tool=document.getElementById("tool").value;
   const company=document.getElementById("company").value;
   const disposition=document.getElementById("disposition").value;
-  const amReason=document.getElementById("amReason").value;
+  const amReasonSelect = document.getElementById("amReason").value;
+const amReasonOther = document.getElementById("amReasonOther").value.trim();
+
+let finalAmReason = amReasonSelect;
+
+if(amReasonSelect === "Other"){
+  if(!amReasonOther){
+    alert("Please enter specific AM reason");
+    return;
+  }
+  finalAmReason = amReasonOther;
+}
   const status=document.getElementById("status").value || "Open";
   const notes=document.getElementById("notes").value.trim();
 
@@ -512,7 +538,7 @@ async function saveLog(){
     tool,
     company,
     disposition,
-    amReason,
+    amReason: finalAmReason,
     status,
     notes,
     agent,
@@ -1005,12 +1031,17 @@ async function exportCSV(){
   let csvBuffer = [];
 
   const headers = [
-    "Customer","Phone","Company","Disposition",
-    "Status","Agent","Date","Notes",
-    "Log Created Time",
-    "Resolved Time",
-    "Lifecycle Hours"
-  ];
+    "Customer",
+  "Phone",
+  "Company",
+  "Disposition",
+  "AM Reason",
+  "Status",
+  "Agent",
+  "Created Time",
+  "Resolved Time",
+  "Lifecycle Hours"
+];
 
   csvBuffer.push(headers.join(","));
 
@@ -1056,17 +1087,17 @@ async function exportCSV(){
 }
 
       csvBuffer.push([
-        escapeCSV(l.customer),
-        escapeCSV(l.phone),
-        escapeCSV(l.company),
-        escapeCSV(l.disposition),
-        escapeCSV(l.status),
-        escapeCSV(l.agent),
-        escapeCSV(l.created?.toDate?.().toLocaleString()),
-        escapeCSV(resolvedTime?.toLocaleString()),
-        escapeCSV(lifecycleHours)
-      ].join(","));
-
+  escapeCSV(l.customer),
+  escapeCSV(l.phone),
+  escapeCSV(l.company),
+  escapeCSV(l.disposition),
+  escapeCSV(l.amReason || ""),
+  escapeCSV(l.status),
+  escapeCSV(l.agent),
+  escapeCSV(l.created?.toDate?.().toLocaleString()),
+  escapeCSV(resolvedTime?.toLocaleString()),
+  escapeCSV(lifecycleHours)
+].join(","));
     });
 
     lastDoc = snap.docs[snap.docs.length-1];
@@ -1298,6 +1329,7 @@ async function loadAdminAnalytics(){
 
 </body>
 </html>
+
 
 
 
