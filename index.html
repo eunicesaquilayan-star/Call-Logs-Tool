@@ -895,16 +895,15 @@ else{
     firstVisibleDoc = snapshot.docs[0];
     lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
 
-   if(direction !== "prev" && firstVisibleDoc){
+   
   if(direction !== "prev" && firstVisibleDoc){
 
-  const lastStack = pageStack[pageStack.length-1];
+  const lastStack = pageStack[pageStack.length - 1];
 
   if(!lastStack || lastStack.id !== firstVisibleDoc.id){
     pageStack.push(firstVisibleDoc);
   }
 }
-
    let filteredDocs = snapshot.docs.filter(doc=>{
   const data = doc.data();
 
@@ -1593,6 +1592,7 @@ async function exportCSVSafe(){
 </script>
 </body>
 </html>
+
 
 
 
