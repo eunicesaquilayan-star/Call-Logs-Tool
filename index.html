@@ -480,7 +480,29 @@ function loadCompanies() {
     companySelect.appendChild(o);
   });
 }
+function checkDispositionReason(){
 
+  const disp = document.getElementById('disposition').value;
+  const amBox = document.getElementById('amReason');
+  const otherBox = document.getElementById('amReasonOther');
+  const amName = document.getElementById('amName');
+
+  if(disp === 'Refer to AM'){
+
+    amBox.classList.remove('hidden');
+    amName.classList.remove('hidden');
+
+  }else{
+
+    amBox.classList.add('hidden');
+    otherBox.classList.add('hidden');
+    amName.classList.add('hidden');
+
+    amBox.value='';
+    otherBox.value='';
+    amName.value='';
+  }
+}
 
 /* ================= SAVE LOG ================= */
 
@@ -547,6 +569,16 @@ if(amReasonSelect === "Other"){
     return;
   }
   finalAmReason = amReasonOther;
+}
+  if(disposition === "Refer to AM"){
+
+  const amReason = document.getElementById("amReason").value;
+
+  if(!amReason){
+    alert("Please select AM Reason");
+    return;
+  }
+
 }
   const amName=document.getElementById("amName").value.trim();
   const dollarAmount=document.getElementById("dollarAmount").value.trim();
@@ -665,6 +697,7 @@ document.getElementById("notes").value="Concern:\n\nAction Taken:";
    .doc("daily_"+today)
    .set(cache,{merge:true});
 }
+  
   /* =========================================================
 STATUS UPDATE SAFE
 =========================================================*/
@@ -1392,6 +1425,7 @@ async function loadAdminAnalytics(){
 </script>
 </body>
 </html>
+
 
 
 
