@@ -1053,6 +1053,7 @@ function viewNotes(id){
   editLogId = id;
 
   db.collection("logs").doc(id).get().then(doc=>{
+
     if(!doc.exists) return;
 
     const data = doc.data();
@@ -1066,6 +1067,7 @@ function viewNotes(id){
     document.getElementById("editNotes").value = data.notes || "";
 
     fullEditModal.style.display = "flex";
+
   });
 
 }
@@ -1091,7 +1093,6 @@ function updateFullLog(){
     loadLogs();
   })
   .catch(e=>alert(e.message));
-
 }
   function closeFullEditModal(){
   fullEditModal.style.display = "none";
@@ -1579,6 +1580,7 @@ window.addEventListener("unhandledrejection", function(e){
 
 </body>
 </html>
+
 
 
 
