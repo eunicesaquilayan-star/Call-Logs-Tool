@@ -36,7 +36,6 @@
 
 td{
   vertical-align: top;
-
 }
 .toast{
   position:fixed;
@@ -140,16 +139,15 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
   <option>Other</option>
 </select>
 
-    <input id="amReasonOther" 
-       class="hidden" 
-       placeholder="Enter specific AM reason">
-    
+    <input id="amReasonOther"
+class="hidden"
+placeholder="Enter specific AM reason">
+
     <input id="amName"
 class="hidden"
 placeholder="Enter Account Manager Name">
 
-    <input id="dollarAmount" placeholder="Dollar Amount ($)">
-
+  <input id="dollarAmount" placeholder="Dollar Amount ($)">
     <select id="status">
       <option>Open</option>
       <option>Follow-up</option>
@@ -190,7 +188,6 @@ Action Taken:</textarea>
   <th>Resolved Time</th>
   <th>SLA</th>
   <th>Actions</th>
-         
 </tr>
 
       </thead>
@@ -264,8 +261,6 @@ Action Taken:</textarea>
 <div id="actionToast" class="toast"></div>
 
 <script>
-
-  /* ================= Global Variables ================= */
 let isAdmin = false;
 let lastVisibleDoc = null;
 let firstVisibleDoc = null;
@@ -274,14 +269,12 @@ let pageSize = 20;
 let currentPage = 1;
 let editLogId = null;
 let submissionLock = false;
-  /* ================= Firebase Init ================= */
+  
 firebase.initializeApp({
   apiKey: "AIzaSyBEbq_d9nGXFLNdHaWICDfOzvQECC6yjOQ",
   authDomain: "call-logs-tool.firebaseapp.com",
   projectId: "call-logs-tool",
 });
-
-  /* ================= DOM Ref ================= */
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -305,13 +298,9 @@ const adminPanel = document.getElementById("adminPanel")
  alert("Not authenticated");
  return;
 }
-    const email = auth.currentUser.email.toLowerCase();
-
-if(!email.endsWith("@supplylogic.com")){
+    if(!auth.currentUser.email.endsWith("@supplylogic.com")){
   return;
 }
-
-if(!log.agent) return;
 
   const today=new Date().toISOString().slice(0,10);
 
@@ -329,32 +318,24 @@ if(!log.agent) return;
       dispositions:{}
     };
 
+    data.totalLogs++;
 
-if(!log.agent) return;
-
-data.totalLogs++;
-
-if(log.status==="Resolved")
-  data.resolved++;
+    if(log.status==="Resolved")
+      data.resolved++;
 
     // SLA check (48h rule)
    // do not calculate SLA at write time
 // breach should be computed dynamically in analytics
 
     // Agent leaderboard
-    if(log.agent){
+    if(!data.agents[log.agent]){
+      data.agents[log.agent]={logs:0,resolved:0};
+    }
 
-  if(!data.agents[log.agent]){
-    data.agents[log.agent]={logs:0,resolved:0};
-  }
+    data.agents[log.agent].logs++;
 
-  data.agents[log.agent].logs++;
-
-  if(log.status==="Resolved"){
-    data.agents[log.agent].resolved++;
-  }
-
-}
+    if(log.status==="Resolved")
+      data.agents[log.agent].resolved++;
 
     // Disposition stats
    if(log.disposition){
@@ -365,7 +346,7 @@ if(log.status==="Resolved")
     tx.set(cacheDoc,data,{merge:true});
   });
 }
-/* ================= Log in ================= */
+// LOGIN
 function login(){
   const email = document.getElementById("loginEmail").value.trim();
   const password = document.getElementById("loginPassword").value;
@@ -385,7 +366,7 @@ function login(){
     alert("Login failed: " + e.message);
   });
 }
-/* ================= Log out ================= */
+// LOGOUT
 function logout(){
   auth.signOut();
 }
@@ -414,10 +395,8 @@ auth.onAuthStateChanged(u=>{
       agentForm.classList.remove('hidden');
     }
 
-    setTimeout(()=>{
- populateCompanyFilter();
- loadLogs();
-},300);
+    populateCompanyFilter();
+    loadLogs();
 
   } else {
 
@@ -427,7 +406,7 @@ auth.onAuthStateChanged(u=>{
   }
 });
 
-/* ================= Companies ================= */
+// COMPANIES
 const companies={
   "Shopify":[
     "Bayada Wear","First Watch Shop","First Watch Swag","KOC","Learfield",
@@ -468,10 +447,10 @@ const companies={
     "Triad Advertising Corp","Trillium Health Resources","UMROI","Under Armour",
     "University of MD Medical System","Webb Mason Commercial",
     "Webb/Mason Company Store","Westmoor Mfg Co",
-    "Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires","Knight of Columbus"
+    "Wyndham Hotels&Resorts, Inc.","Yokohama Off Highway Tires","KOC",
   ]
 };
-/* ================= Load companies ================= */
+
 function loadCompanies() {
   const toolEl = document.getElementById('tool');
   const companySelect = document.getElementById('company');
@@ -501,41 +480,6 @@ function loadCompanies() {
     companySelect.appendChild(o);
   });
 }
-  /* =================AMDisposition Reason================= */
-function checkDispositionReason(){
-
-  const disp = document.getElementById('disposition').value;
-  const amBox = document.getElementById('amReason');
-  const otherBox = document.getElementById('amReasonOther');
-  const amName = document.getElementById('amName');
-
-  if(disp === 'Refer to AM'){
-
-    amBox.classList.remove('hidden');
-    amName.classList.remove('hidden');
-
-  }else{
-
-    amBox.classList.add('hidden');
-    otherBox.classList.add('hidden');
-    amName.classList.add('hidden');
-
-    amBox.value='';
-    otherBox.value='';
-    amName.value='';
-  }
-}
-  function checkAMOther(){
-  const reason = document.getElementById("amReason").value;
-  const otherInput = document.getElementById("amReasonOther");
-
-  if(reason === "Other"){
-    otherInput.classList.remove("hidden");
-  } else {
-    otherInput.classList.add("hidden");
-    otherInput.value = "";
-  }
-}
 
 
 /* ================= SAVE LOG ================= */
@@ -560,12 +504,8 @@ async function saveLog(){
  alert("Invalid customer name");
  return;
 }
-  const phone = document.getElementById("phone").value.trim();
 
-if(phone && phone.length < 7){
- alert("Invalid phone number");
- return;
-}
+  const phone=document.getElementById("phone").value.trim();
   const ref=document.getElementById("refId").value.trim();
   const tool=document.getElementById("tool").value;
   let company = "";
@@ -588,7 +528,8 @@ else{
 }
   const disposition=document.getElementById("disposition").value;
   if(disposition === "Refer to AM"){
-  const amNameCheck = document.getElementById("amName").value.trim();
+  const amNameCheck =
+    document.getElementById("amName").value.trim();
 
   if(!amNameCheck){
     alert("Please enter the Account Manager name");
@@ -633,7 +574,6 @@ agent,
 createdDay,
 created:firebase.firestore.FieldValue.serverTimestamp()
 };
-
   try{
 
     const docRef=await db.collection("logs").add(logData);
@@ -754,6 +694,7 @@ if(newStatus === "Follow-up"){
   updateData.followUpAt =
     firebase.firestore.FieldValue.serverTimestamp();
 }
+
   db.collection("logs").doc(editLogId).update(updateData)
   .then(async ()=>{
 
@@ -777,47 +718,50 @@ function showToast(msg,duration=2500){
 
 // POPULATE FILTERS
 function populateCompanyFilter(){
-
   const companySelect=document.getElementById('filterCompany');
   companySelect.innerHTML='<option value="">All Companies</option>';
-
   const allCompanies=[].concat(...Object.values(companies));
-
-  // Use Set to avoid duplicates
-  const uniqueCompanies = new Set(allCompanies);
-
-  uniqueCompanies.forEach(c=>{
-    const o=document.createElement('option');
-    o.value=o.textContent=c;
-    companySelect.appendChild(o);
+  allCompanies.forEach(c=>{
+    const o=document.createElement('option'); o.value=o.textContent=c; companySelect.appendChild(o);
   });
+}
+populateCompanyFilter();
+  /* ================= GLOBAL FILTER STATE ================= */
 
-  // ⭐ Add dynamic "Other" companies stored in Firestore logs
-  db.collection("logs")
-  .where("tool","==","Other")
-  .limit(200)
-  .get()
-  .then(snap=>{
+let activeFilter = {
+  company: "",
+  startDate: "",
+  endDate: "",
+  search: "",
+  status: ""
+};
 
-    let manualCompanies = new Set();
+/* ================= FILTER CAPTURE ================= */
 
-    snap.forEach(doc=>{
-      const data = doc.data();
-      if(data.company){
-        manualCompanies.add(data.company);
-      }
-    });
+function captureFilters(){
+  activeFilter.company =
+    document.getElementById("filterCompany")?.value || "";
 
-    manualCompanies.forEach(c=>{
-      if(!uniqueCompanies.has(c)){
-        const o=document.createElement('option');
-        o.value=o.textContent=c;
-        companySelect.appendChild(o);
-      }
-    });
+  activeFilter.startDate =
+    document.getElementById("filterStartDate")?.value || "";
 
-  });
+  activeFilter.endDate =
+    document.getElementById("filterEndDate")?.value || "";
 
+  activeFilter.search =
+    document.getElementById("searchCustomer")?.value
+      ?.trim().toLowerCase() || "";
+  activeFilter.status =
+  document.getElementById("filterStatus")?.value || "";
+}
+
+function applyFilters(){
+  pageStack = [];
+  lastVisibleDoc = null;
+  firstVisibleDoc = null;
+
+  captureFilters();
+  loadLogs("first");
 }
 
 /* ================= LOAD LOGS (FIXED PAGINATION) ================= */
@@ -838,15 +782,12 @@ function loadLogs(direction = "first") {
  let q = db.collection('logs');
 
 if(activeFilter.search){
-   q = db.collection("logs")
-        .orderBy("customerLower")
-        .orderBy("created","desc")
-        .where("customerLower", ">=", activeFilter.search)
-        .where("customerLower", "<=", activeFilter.search + "\uf8ff");
-}
-else{
-   q = db.collection("logs")
-        .orderBy("created","desc");
+  q = q.where('customerLower','>=',activeFilter.search)
+       .where('customerLower','<=',activeFilter.search + '\uf8ff')
+       .orderBy('customerLower')
+       .orderBy('created','desc');
+} else {
+  q = q.orderBy('created','desc');
 }
   // 🔹 Company filter
   if(activeFilter.company){
@@ -880,10 +821,6 @@ else{
     const prevDoc = pageStack[pageStack.length - 1];
     q = q.startAt(prevDoc);
   }
-  if(!q){
- alert("Query initialization error");
- return;
-}
 
   q.get().then(snapshot=>{
 
@@ -895,27 +832,15 @@ else{
     firstVisibleDoc = snapshot.docs[0];
     lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
 
-   
-  if(direction !== "prev" && firstVisibleDoc){
+    if(direction !== "prev" && firstVisibleDoc){
 
-  const lastStack = pageStack[pageStack.length - 1];
+ const lastStack = pageStack[pageStack.length-1];
 
-  if(!lastStack || lastStack.id !== firstVisibleDoc.id){
-    pageStack.push(firstVisibleDoc);
-  }
+ if(!lastStack || lastStack.id !== firstVisibleDoc.id){
+   pageStack.push(firstVisibleDoc);
+ }
 }
-   let filteredDocs = snapshot.docs.filter(doc=>{
-  const data = doc.data();
-
-  if(activeFilter.search){
-    return data.customerLower &&
-           data.customerLower.includes(activeFilter.search);
-  }
-
-  return true;
-});
-
-filteredDocs.forEach(d=>{
+    snapshot.forEach(d=>{
 
       const l = d.data();
 
@@ -1063,83 +988,65 @@ function viewNotes(id){
 
 }
 
- function openFullEditModal(id){
-
+  function openFullEditModal(id){
   editLogId = id;
 
   db.collection("logs").doc(id).get().then(doc=>{
-
     if(!doc.exists) return;
 
-    const data = doc.data();
+    const l = doc.data();
 
-    document.getElementById("editCustomer").value = data.customer || "";
-    document.getElementById("editPhone").value = data.phone || "";
-    document.getElementById("editRef").value = data.ref || "";
-    document.getElementById("editCompany").value = data.company || "";
-    document.getElementById("editDisposition").value = data.disposition || "";
-    document.getElementById("editFullStatus").value = data.status || "Open";
-    document.getElementById("editNotes").value = data.notes || "";
+    editCustomer.value = l.customer || "";
+    editPhone.value = l.phone || "";
+    editRef.value = l.ref || "";
+    editCompany.value = l.company || "";
+    editDisposition.value = l.disposition || "";
+    editFullStatus.value = l.status || "Open";
+    editNotes.value = l.notes || "";
 
     fullEditModal.style.display = "flex";
-
   });
-
-}
-
-function updateFullLog(){
-
-  if(!editLogId) return;
-
-  const updateData = {
-    customer: document.getElementById("editCustomer").value,
-    phone: document.getElementById("editPhone").value,
-    ref: document.getElementById("editRef").value,
-    company: document.getElementById("editCompany").value,
-    disposition: document.getElementById("editDisposition").value,
-    status: document.getElementById("editFullStatus").value,
-    notes: document.getElementById("editNotes").value
-  };
-
-  db.collection("logs").doc(editLogId).update(updateData)
-  .then(()=>{
-    showToast("✅ Log updated");
-    closeFullEditModal();
-    loadLogs();
-  })
-  .catch(e=>alert(e.message));
-
 }
 
 function closeFullEditModal(){
   fullEditModal.style.display = "none";
 }
 
-function deleteLog(id){
-
-  if(!auth.currentUser){
+function updateFullLog(){
+ if(!auth.currentUser){
     alert("Not authenticated");
     return;
   }
 
-  if(!isAdmin){
-    alert("Unauthorized");
-    return;
-  }
+  if(!editLogId) return;
+const newCustomer = editCustomer.value.trim();
+  db.collection("logs").doc(editLogId).update({
+    customer: newCustomer,
+    customerLower: newCustomer.toLowerCase(),
+    phone: editPhone.value.trim(),
+    ref: editRef.value.trim(),
+    company: editCompany.value.trim(),
+    disposition: editDisposition.value.trim(),
+    status: editFullStatus.value,
+    notes: editNotes.value.trim(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  })
+  .then(async ()=>{
 
-  if(!confirm("Delete this log?")) return;
-
-  db.collection("logs").doc(id).delete().then(async ()=>{
-
-    showToast("🗑️ Log deleted");
+    showToast("✅ Log fully updated");
 
     await rebuildTodayAnalyticsCache();
 
+    closeFullEditModal();
     loadLogs();
-  });
-}
 
-  /* =========================================================
+    editLogId = null;
+
+  })
+  .catch(e=>alert(e.message));
+}
+  
+/* =========================================================
 CSV EXPORT — FULLY SAFE VERSION
 =========================================================*/
 async function exportCSV(){
@@ -1147,7 +1054,7 @@ async function exportCSV(){
   captureFilters();
 
   let q = db.collection("logs")
-            .orderBy("created","desc")
+            .orderBy("created","desc");
 
   if(activeFilter.company)
     q = q.where('company','==',activeFilter.company);
@@ -1163,9 +1070,10 @@ async function exportCSV(){
 
   let csvBuffer = [];
 
- const headers = [
+  const headers = [
 "Customer",
 "Phone",
+"Refid",
 "Company",
 "Disposition",
 "AM Name",
@@ -1179,7 +1087,6 @@ async function exportCSV(){
 "SLA Status",
 "Breach Hours"
 ];
-
   csvBuffer.push(headers.join(","));
 
   let lastDoc = null;
@@ -1234,13 +1141,13 @@ async function exportCSV(){
   const createdText = created ? created.toLocaleString() : "";
   const resolvedText = resolved ? resolved.toLocaleString() : "";
 
-const row = [
+  const row = [
 escapeCSV(l.customer),
 escapeCSV(l.phone),
+escapeCSV(l.ref || ""),          // ✅ REF ID FIXED
 escapeCSV(l.company),
 escapeCSV(l.disposition),
 escapeCSV(l.amName || ""),
-escapeCSV(l.amReason || ""),
 escapeCSV(l.dollarAmount || ""),
 escapeCSV(l.status),
 escapeCSV(l.agent),
@@ -1250,12 +1157,13 @@ escapeCSV(resolutionHours),
 escapeCSV(SLA_HOURS),
 escapeCSV(slaStatus),
 escapeCSV(breachHours)
-];
+];;
 
 csvBuffer.push(row.join(","));
 
 });
-     
+
+
     lastDoc = snap.docs[snap.docs.length-1];
   }
 
@@ -1276,6 +1184,32 @@ csvBuffer.push(row.join(","));
   URL.revokeObjectURL(url);
 
   showToast("📄 Streaming CSV Export Completed");
+}
+
+/* ================= DELETE ================= */
+
+function deleteLog(id){
+
+  if(!auth.currentUser){
+    alert("Not authenticated");
+    return;
+  }
+
+  if(!isAdmin){
+    alert("Unauthorized");
+    return;
+  }
+
+  if(!confirm("Delete this log?")) return;
+
+  db.collection("logs").doc(id).delete().then(async ()=>{
+
+    showToast("🗑️ Log deleted");
+
+    await rebuildTodayAnalyticsCache();
+
+    loadLogs();
+  });
 }
 
 // ADMIN ANALYTICS
@@ -1313,11 +1247,10 @@ async function loadAdminAnalytics(){
   // SINGLE FIRESTORE SCAN ONLY
   // ===============================
 
-  const cacheSnap = await db.collection("analytics_cache")
-  .where(firebase.firestore.FieldPath.documentId(),"in",
-        dateList.map(d=>"daily_"+d))
-  .get();
-  
+  const logsSnap = await db.collection("logs")
+    .where("createdDay","in",dateList)
+    .get();
+
   let totalLogs = 0;
   let resolved = 0;
   let breached = 0;
@@ -1330,7 +1263,7 @@ async function loadAdminAnalytics(){
 
   const SLA_HOURS = 48;
 
-  cacheSnap.forEach(doc=>{
+  logsSnap.forEach(doc=>{
 
     const l = doc.data();
 
@@ -1455,150 +1388,10 @@ async function loadAdminAnalytics(){
 
   return ((end - created)/36e5).toFixed(2);
 }
-  /* =========================================================
-ZERO CRASH ENTERPRISE ENGINE LAYER
-Safe Guard + Cost Protection + Runtime Stabilizer
-=========================================================*/
 
-/* ================= AUTH GUARD ================= */
-
-function requireAuth(){
-  if(!auth.currentUser){
-    alert("Not authenticated");
-    return false;
-  }
-  return true;
-}
-
-/* ================= FIRESTORE QUERY GUARD ================= */
-
-function safeQuery(query){
-
-  if(!query){
-    throw new Error("Firestore query initialization failed");
-  }
-
-  return query;
-}
-
-/* ================= WRITE THROTTLE PROTECTION ================= */
-
-let writeLock = false;
-
-function safeWriteGuard(){
-
-  if(writeLock) return false;
-
-  writeLock = true;
-
-  setTimeout(()=>{
-    writeLock = false;
-  },1500);
-
-  return true;
-}
-
-/* ================= ANALYTICS BACKGROUND SHIELD ================= */
-
-async function safeAnalyticsRebuild(){
-  try{
-
-    await rebuildTodayAnalyticsCache();
-
-  }catch(e){
-    console.error("Analytics rebuild failed:",e.message);
-  }
-}
-
-/* ================= COST GOVERNOR (FREE TIER PROTECTION) ================= */
-
-async function firestoreReadGovernor(queryPromise){
-
-  const snap = await queryPromise;
-
-  if(!snap) return {empty:true, docs:[]};
-
-  return snap;
-}
-
-/* ================= GLOBAL ERROR SHIELD ================= */
-
-window.addEventListener("unhandledrejection", function(e){
-  console.error("Async Error:",e.reason);
-});
-
-/* ================= MEMORY SAFETY CLEANER ================= */
-
-function memoryCleanup(){
-  pageStack = pageStack.slice(-50);
-}
-
-/* Run cleanup every 5 minutes */
-
-setInterval(memoryCleanup,300000);
-
-  window.addEventListener("error", function(e){
- console.error("Runtime Error:", e.message);
- return false;
-});
-
-/* ================= SLA WATCHDOG DAEMON ================= */
-
-async function slaWatchdog(){
-
-  try{
-
-    const today = new Date().toISOString().slice(0,10);
-
-    const snap = await db.collection("logs")
-    .where("createdDay","==",today)
-    .get();
-
-    snap.forEach(doc=>{
-
-      const l = doc.data();
-
-      if(!l.created || l.status === "Resolved") return;
-
-      const created = l.created.toDate();
-
-      const elapsed = (Date.now()-created.getTime())/36e5;
-
-      if(elapsed > 48 && l.status !== "Resolved"){
-        console.warn("SLA Breach detected:",doc.id);
-      }
-
-    });
-
-  }catch(e){
-    console.error(e.message);
-  }
-}
-
-/* Run watchdog every 10 minutes */
-
-setInterval(slaWatchdog,600000);
-
-/* ================= EXPORT SAFETY WRAPPER ================= */
-
-async function exportCSVSafe(){
-  try{
-    await exportCSV();
-  }catch(e){
-    alert("Export failed: "+e.message);
-  }
-}
-    
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
 
 
 
