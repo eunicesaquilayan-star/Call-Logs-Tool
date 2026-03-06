@@ -503,6 +503,19 @@ function checkDispositionReason(){
     amName.value='';
   }
 }
+  function checkAMOther(){
+
+  const reason = document.getElementById("amReason").value;
+  const otherBox = document.getElementById("amReasonOther");
+
+  if(reason === "Other"){
+    otherBox.classList.remove("hidden");
+  }else{
+    otherBox.classList.add("hidden");
+    otherBox.value = "";
+  }
+
+}
 
 /* ================= SAVE LOG ================= */
 
@@ -1425,6 +1438,7 @@ async function loadAdminAnalytics(){
 </script>
 </body>
 </html>
+
 
 
 
