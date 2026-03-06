@@ -1093,9 +1093,7 @@ function updateFullLog(){
     loadLogs();
   })
   .catch(e=>alert(e.message));
-}
-  function closeFullEditModal(){
-  fullEditModal.style.display = "none";
+
 }
   
 /* =========================================================
@@ -1576,10 +1574,14 @@ window.addEventListener("unhandledrejection", function(e){
  console.error("Async Error:", e.reason);
 });
 }
+  function closeFullEditModal(){
+  fullEditModal.style.display = "none";
+}
 </script>
 
 </body>
 </html>
+
 
 
 
