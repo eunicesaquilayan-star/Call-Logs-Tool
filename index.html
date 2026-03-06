@@ -778,50 +778,47 @@ function showToast(msg,duration=2500){
 
 // POPULATE FILTERS
 function populateCompanyFilter(){
+
   const companySelect=document.getElementById('filterCompany');
   companySelect.innerHTML='<option value="">All Companies</option>';
+
   const allCompanies=[].concat(...Object.values(companies));
-  allCompanies.forEach(c=>{
-    const o=document.createElement('option'); o.value=o.textContent=c; companySelect.appendChild(o);
+
+  // Use Set to avoid duplicates
+  const uniqueCompanies = new Set(allCompanies);
+
+  uniqueCompanies.forEach(c=>{
+    const o=document.createElement('option');
+    o.value=o.textContent=c;
+    companySelect.appendChild(o);
   });
-}
-populateCompanyFilter();
-  /* ================= GLOBAL FILTER STATE ================= */
 
-let activeFilter = {
-  company: "",
-  startDate: "",
-  endDate: "",
-  search: "",
-  status: ""
-};
+  // ⭐ Add dynamic "Other" companies stored in Firestore logs
+  db.collection("logs")
+  .where("tool","==","Other")
+  .limit(200)
+  .get()
+  .then(snap=>{
 
-/* ================= FILTER CAPTURE ================= */
+    let manualCompanies = new Set();
 
-function captureFilters(){
-  activeFilter.company =
-    document.getElementById("filterCompany")?.value || "";
+    snap.forEach(doc=>{
+      const data = doc.data();
+      if(data.company){
+        manualCompanies.add(data.company);
+      }
+    });
 
-  activeFilter.startDate =
-    document.getElementById("filterStartDate")?.value || "";
+    manualCompanies.forEach(c=>{
+      if(!uniqueCompanies.has(c)){
+        const o=document.createElement('option');
+        o.value=o.textContent=c;
+        companySelect.appendChild(o);
+      }
+    });
 
-  activeFilter.endDate =
-    document.getElementById("filterEndDate")?.value || "";
+  });
 
-  activeFilter.search =
-    document.getElementById("searchCustomer")?.value
-      ?.trim().toLowerCase() || "";
-  activeFilter.status =
-  document.getElementById("filterStatus")?.value || "";
-}
-
-function applyFilters(){
-  pageStack = [];
-  lastVisibleDoc = null;
-  firstVisibleDoc = null;
-
-  captureFilters();
-  loadLogs("first");
 }
 
 /* ================= LOAD LOGS (FIXED PAGINATION) ================= */
@@ -840,6 +837,10 @@ function loadLogs(direction = "first") {
   table.innerHTML = '';
 
  let q = db.collection('logs');
+
+q = q.orderBy("created","desc");
+
+// Search filter (client-side safe filtering)
 
 if(activeFilter.search){
   q = q.where('customerLower','>=',activeFilter.search)
@@ -900,7 +901,20 @@ if(activeFilter.search){
       pageStack.push(firstVisibleDoc);
     }
 
-    snapshot.forEach(d=>{
+    let filteredDocs = snapshot.docs;
+
+// Client-side search filter (avoids Firestore compound index crash)
+if(activeFilter.search){
+
+  filteredDocs = filteredDocs.filter(doc=>{
+    const data = doc.data();
+    return data.customerLower &&
+           data.customerLower.includes(activeFilter.search);
+  });
+
+}
+
+filteredDocs.forEach(d=>{
 
       const l = d.data();
 
@@ -1095,8 +1109,36 @@ function updateFullLog(){
   .catch(e=>alert(e.message));
 
 }
-  
-/* =========================================================
+
+function closeFullEditModal(){
+  fullEditModal.style.display = "none";
+}
+
+function deleteLog(id){
+
+  if(!auth.currentUser){
+    alert("Not authenticated");
+    return;
+  }
+
+  if(!isAdmin){
+    alert("Unauthorized");
+    return;
+  }
+
+  if(!confirm("Delete this log?")) return;
+
+  db.collection("logs").doc(id).delete().then(async ()=>{
+
+    showToast("🗑️ Log deleted");
+
+    await rebuildTodayAnalyticsCache();
+
+    loadLogs();
+  });
+}
+
+  /* =========================================================
 CSV EXPORT — FULLY SAFE VERSION
 =========================================================*/
 async function exportCSV(){
@@ -1191,13 +1233,14 @@ async function exportCSV(){
   const createdText = created ? created.toLocaleString() : "";
   const resolvedText = resolved ? resolved.toLocaleString() : "";
 
-  const row = [
+const row = [
 escapeCSV(l.customer),
 escapeCSV(l.phone),
 escapeCSV(l.company),
 escapeCSV(l.disposition),
-escapeCSV(l.amName || ""),        // ✅ AM Name
-escapeCSV(l.dollarAmount || ""),   // ✅ Dollar Amount
+escapeCSV(l.amName || ""),
+escapeCSV(l.amReason || ""),
+escapeCSV(l.dollarAmount || ""),
 escapeCSV(l.status),
 escapeCSV(l.agent),
 escapeCSV(created?.toLocaleString() || ""),
@@ -1232,32 +1275,6 @@ csvBuffer.push(row.join(","));
   URL.revokeObjectURL(url);
 
   showToast("📄 Streaming CSV Export Completed");
-}
-
-/* ================= DELETE ================= */
-
-function deleteLog(id){
-
-  if(!auth.currentUser){
-    alert("Not authenticated");
-    return;
-  }
-
-  if(!isAdmin){
-    alert("Unauthorized");
-    return;
-  }
-
-  if(!confirm("Delete this log?")) return;
-
-  db.collection("logs").doc(id).delete().then(async ()=>{
-
-    showToast("🗑️ Log deleted");
-
-    await rebuildTodayAnalyticsCache();
-
-    loadLogs();
-  });
 }
 
 // ADMIN ANALYTICS
@@ -1519,6 +1536,11 @@ function memoryCleanup(){
 
 setInterval(memoryCleanup,300000);
 
+  window.addEventListener("error", function(e){
+ console.error("Runtime Error:", e.message);
+ return false;
+});
+
 /* ================= SLA WATCHDOG DAEMON ================= */
 
 async function slaWatchdog(){
@@ -1563,24 +1585,12 @@ async function exportCSVSafe(){
     await exportCSV();
   }catch(e){
     alert("Export failed: "+e.message);
-});
-  
-  window.addEventListener("error", function(e){
- console.error("Runtime Error:", e.message);
- return false;
-});
-
-window.addEventListener("unhandledrejection", function(e){
- console.error("Async Error:", e.reason);
-});
+  }
 }
-  function closeFullEditModal(){
-  fullEditModal.style.display = "none";
-}
+    
 </script>
 </body>
 </html>
-
 
 
 
