@@ -1048,63 +1048,53 @@ function viewNotes(id){
 
 }
 
-  function openFullEditModal(id){
+ function openFullEditModal(id){
+
   editLogId = id;
 
   db.collection("logs").doc(id).get().then(doc=>{
     if(!doc.exists) return;
 
-    const l = doc.data();
+    const data = doc.data();
 
-    editCustomer.value = l.customer || "";
-    editPhone.value = l.phone || "";
-    editRef.value = l.ref || "";
-    editCompany.value = l.company || "";
-    editDisposition.value = l.disposition || "";
-    editFullStatus.value = l.status || "Open";
-    editNotes.value = l.notes || "";
+    document.getElementById("editCustomer").value = data.customer || "";
+    document.getElementById("editPhone").value = data.phone || "";
+    document.getElementById("editRef").value = data.ref || "";
+    document.getElementById("editCompany").value = data.company || "";
+    document.getElementById("editDisposition").value = data.disposition || "";
+    document.getElementById("editFullStatus").value = data.status || "Open";
+    document.getElementById("editNotes").value = data.notes || "";
 
     fullEditModal.style.display = "flex";
   });
-}
 
-function closeFullEditModal(){
-  fullEditModal.style.display = "none";
 }
 
 function updateFullLog(){
- if(!auth.currentUser){
-    alert("Not authenticated");
-    return;
-  }
 
   if(!editLogId) return;
-    const newCustomer = editCustomer.value.trim();
-  
-  db.collection("logs").doc(editLogId).update({
-    customer: newCustomer,
-    customerLower: newCustomer.toLowerCase(),
-    phone: editPhone.value.trim(),
-    ref: editRef.value.trim(),
-    company: editCompany.value.trim(),
-    disposition: editDisposition.value.trim(),
-    status: editFullStatus.value,
-    notes: editNotes.value.trim(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  })
-  .then(async ()=>{
 
-    showToast("✅ Log fully updated");
+  const updateData = {
+    customer: document.getElementById("editCustomer").value,
+    phone: document.getElementById("editPhone").value,
+    ref: document.getElementById("editRef").value,
+    company: document.getElementById("editCompany").value,
+    disposition: document.getElementById("editDisposition").value,
+    status: document.getElementById("editFullStatus").value,
+    notes: document.getElementById("editNotes").value
+  };
 
-    await rebuildTodayAnalyticsCache();
-
+  db.collection("logs").doc(editLogId).update(updateData)
+  .then(()=>{
+    showToast("✅ Log updated");
     closeFullEditModal();
     loadLogs();
-
-    editLogId = null;
-
   })
   .catch(e=>alert(e.message));
+
+}
+  function closeFullEditModal(){
+  fullEditModal.style.display = "none";
 }
   
 /* =========================================================
@@ -1589,6 +1579,7 @@ window.addEventListener("unhandledrejection", function(e){
 
 </body>
 </html>
+
 
 
 
