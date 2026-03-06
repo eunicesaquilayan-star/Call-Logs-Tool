@@ -1097,6 +1097,13 @@ CSV EXPORT — FULLY SAFE VERSION
 =========================================================*/
 async function exportCSV(){
 
+  // Force export to ignore status filter unless user selected one
+const exportStatus = document.getElementById("filterStatus").value;
+
+if(exportStatus){
+  q = q.where("status","==",exportStatus);
+}
+
   captureFilters();
 
   let q = db.collection("logs")
@@ -1105,9 +1112,12 @@ async function exportCSV(){
   if(activeFilter.company)
     q = q.where('company','==',activeFilter.company);
 
-  if(activeFilter.status)
-    q = q.where('status','==',activeFilter.status);
+  // Only apply status filter if user selected it manually
+const filterStatus = document.getElementById("filterStatus").value;
 
+if(filterStatus){
+  q = q.where("status","==",filterStatus);
+}
   if(activeFilter.startDate)
     q = q.where('createdDay','>=',activeFilter.startDate);
 
@@ -1438,6 +1448,7 @@ async function loadAdminAnalytics(){
 </script>
 </body>
 </html>
+
 
 
 
