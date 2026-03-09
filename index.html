@@ -100,33 +100,43 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
   <!-- AGENT FORM -->
   <div id="agentForm" class="card">
     <h3>New Call Log</h3>
-    <input id="customer" placeholder="Customer Name">
-    <input id="phone" placeholder="Phone Number">
-    <input id="refId" placeholder="User ID / Order # / INV #">
-    <select id="tool" onchange="loadCompanies()">
+    <input id="customer" placeholder="Customer Name" required>
+    <input id="phone" placeholder="Phone Number" required>
+    <input id="refId" placeholder="User ID / Order # / INV #" required>
+    <select id="tool" onchange="loadCompanies()" required>
      <option value="">Select Tool</option>
      <option>Shopify</option>
      <option>Marcom</option>
      <option>Marketing Bench</option>
      <option>Other</option>
     </select>
-    <div id="companyContainer">
+
+    <select id="callType" required>
+<option value="">Select Call Type</option>
+<option>Inbound</option>
+<option>Outbound</option>
+<option>Invoice</option>
+</select>
+    
+    <div id="companyContainer" required>
   <select id="company"></select>
   <input id="companyOther"
          class="hidden"
          placeholder="Enter Company Name">
 </div>
     <select id="disposition" onchange="checkDispositionReason()">
-  <option>Password Reset</option>
-  <option>Order Entry</option>
+<option value="">Select Disposition</option>
+<option>Password Reset</option>
+<option>Order Entry</option>
   <option>Order Status/ Tracking</option>
   <option>Impersonate</option>
   <option>Invoice</option>
-  <option>Disconnect/ GhostCall</option>
+  <option>Disconnect(Attempt 2x)</option>
+  <option>GhostCall</option>
   <option>Other Department</option>
   <option>Refer to AM</option>
 </select>
-  <select id="amReason" class="hidden" onchange="checkAMOther()">
+  <select id="amReason" class="hidden" onchange="checkAMOther()" required>
   <option value="">Select AM Reason</option>
   <option>Account creation</option>
   <option>Website account transfer to a new manager, director, etc</option>
@@ -178,6 +188,7 @@ Action Taken:</textarea>
        <tr>
    <th>Customer</th>
   <th>Phone</th>
+  <th>Call Type</th>
   <th>Company</th>
   <th>Disposition</th>
   <th>Status</th>
@@ -540,9 +551,16 @@ async function saveLog(){
  return;
 }
 
+
   const phone=document.getElementById("phone").value.trim();
   const ref=document.getElementById("refId").value.trim();
   const tool=document.getElementById("tool").value;
+  const callType=document.getElementById("callType").value;
+
+  if(!callType){
+alert("Please select call type");
+return;
+}
   let company = "";
 
 if(tool === "Other"){
@@ -598,6 +616,32 @@ if(amReasonSelect === "Other"){
   const status=document.getElementById("status").value || "Open";
   const notes=document.getElementById("notes").value.trim();
 
+    if(!phone){
+alert("Phone required");
+return;
+}
+
+if(!ref){
+alert("Reference ID required");
+return;
+}
+
+if(!tool){
+alert("Tool required");
+return;
+}
+
+if(!disposition){
+alert("Disposition required");
+return;
+}
+
+if(!notes){
+alert("Notes required");
+return;
+}
+
+
   const agent=auth.currentUser.email;
 
   const createdDay=new Date().toISOString().slice(0,10);
@@ -608,6 +652,7 @@ customerLower:customer.toLowerCase(),
 phone,
 ref,
 tool,
+callType,
 company,
 disposition,
 amReason: finalAmReason,
@@ -763,15 +808,26 @@ function showToast(msg,duration=2500){
 }
 
 // POPULATE FILTERS
-function populateCompanyFilter(){
+async function populateCompanyFilter(){
+
   const companySelect=document.getElementById('filterCompany');
   companySelect.innerHTML='<option value="">All Companies</option>';
-  const allCompanies=[].concat(...Object.values(companies));
-  allCompanies.forEach(c=>{
-    const o=document.createElement('option'); o.value=o.textContent=c; companySelect.appendChild(o);
+
+  const snap = await db.collection("logs").get();
+
+  const set = new Set();
+
+  snap.forEach(d=>{
+    const c = d.data().company;
+    if(c) set.add(c);
+  });
+
+  [...set].sort().forEach(c=>{
+    const o=document.createElement('option');
+    o.value=o.textContent=c;
+    companySelect.appendChild(o);
   });
 }
-populateCompanyFilter();
   /* ================= GLOBAL FILTER STATE ================= */
 
 let activeFilter = {
@@ -944,6 +1000,7 @@ if(created && l.status !== "Resolved"){
       tr.innerHTML = `
   <td>${l.customer || ""}</td>
   <td>${l.phone || ""}</td>
+  <td>${l.callType || ""}</td>
   <td>${l.company || ""}</td>
   <td>${l.disposition || ""}</td>
   <td>${l.status || ""}</td>
@@ -1098,11 +1155,7 @@ CSV EXPORT — FULLY SAFE VERSION
 async function exportCSV(){
 
   // Force export to ignore status filter unless user selected one
-const exportStatus = document.getElementById("filterStatus").value;
 
-if(exportStatus){
-  q = q.where("status","==",exportStatus);
-}
 
   captureFilters();
 
@@ -1129,6 +1182,7 @@ if(filterStatus){
   const headers = [
 "Customer",
 "Phone",
+"Call Type",
 "Refid",
 "Company",
 "Disposition",
@@ -1200,6 +1254,7 @@ if(filterStatus){
   const row = [
 escapeCSV(l.customer),
 escapeCSV(l.phone),
+escapeCSV(l.callType || ""),
 escapeCSV(l.ref || ""),          // ✅ REF ID FIXED
 escapeCSV(l.company),
 escapeCSV(l.disposition),
@@ -1448,6 +1503,7 @@ async function loadAdminAnalytics(){
 </script>
 </body>
 </html>
+
 
 
 
