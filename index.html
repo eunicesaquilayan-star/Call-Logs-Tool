@@ -1187,6 +1187,7 @@ if(filterStatus){
 "Company",
 "Disposition",
 "AM Name",
+"AM Reason",
 "Dollar Amount",
 "Status",
 "Agent",
@@ -1259,6 +1260,7 @@ escapeCSV(l.ref || ""),          // ✅ REF ID FIXED
 escapeCSV(l.company),
 escapeCSV(l.disposition),
 escapeCSV(l.amName || ""),
+escapeCSV(l.amReason || ""),
 escapeCSV(l.dollarAmount || ""),
 escapeCSV(l.status),
 escapeCSV(l.agent),
@@ -1503,6 +1505,7 @@ async function loadAdminAnalytics(){
 </script>
 </body>
 </html>
+
 
 
 
