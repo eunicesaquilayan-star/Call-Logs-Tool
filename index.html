@@ -126,11 +126,13 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
 </div>
     <select id="disposition" onchange="checkDispositionReason()">
 <option value="">Select Disposition</option>
-<option>Password Reset</option>
-<option>Order Entry</option>
+  <option>Password Reset</option>
+  <option>Order Entry</option>
   <option>Order Status/ Tracking</option>
   <option>Impersonate</option>
   <option>Invoice</option>
+  <option>Cancellation</option>
+  <option>Missing item/Incorrect item</option>
   <option>Disconnect(Attempt 2x)</option>
   <option>GhostCall</option>
   <option>Other Department</option>
@@ -146,6 +148,7 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
   <option>Order Approval</option>
   <option>Website update/issue</option>
   <option>Cancellation</option>
+  <option>Missing item/Incorrect item</option>
   <option>Other</option>
 </select>
 
@@ -428,7 +431,7 @@ const companies={
     "American Airlines Credit Union","Applebee's","Brinker","Cash America",
     "Choice Hotels","Dave & Buster's / Main Event","Denny's",
     "Fogo de Chao","IHOP","Noodles & Company","Pei Wei",
-    "Pizza Hut","Steak N Shake","ZAXBYS","BAYADA","NAPA","Tomswatch","Buff City Soap"
+    "Pizza Hut","Steak N Shake","ZAXBYS","BAYADA","NAPA","Tomswatch","Buff City Soap","Save-aLot"
   ],
   "Marketing Bench":[
     "23 Restaurant Services","Aaron's, Inc.","Access Marketing Services","AdventHealth",
@@ -606,7 +609,7 @@ if(amReasonSelect === "Other"){
   const amReason = document.getElementById("amReason").value;
 
   if(!amReason){
-    alert("Please select AM Reason");
+    alert("Please select AM Reason required");
     return;
   }
 
