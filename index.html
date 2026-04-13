@@ -135,6 +135,8 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
   <option>Missing item/Incorrect item</option>
   <option>Disconnect(Attempt 2x)</option>
   <option>GhostCall</option>
+  <option>Website Issue</option>
+  <option>Billing/Charges</option>
   <option>Other Department</option>
   <option>Refer to AM</option>
 </select>
@@ -264,7 +266,7 @@ Action Taken:</textarea>
       <option>Resolved</option>
     </select>
 
-    <textarea id="editNotes"></textarea>
+    <textarea id="editNoted" required></textarea>
 
     <button class="primary" onclick="updateFullLog()">Update</button>
     <button onclick="closeFullEditModal()">Cancel</button>
@@ -640,7 +642,7 @@ return;
 }
 
 if(!notes){
-alert("Notes required");
+alert("Notes are required.");
 return;
 }
 
