@@ -404,17 +404,17 @@ auth.onAuthStateChanged(u=>{
     lastVisibleDoc = null;
     firstVisibleDoc = null;
 
-    if(isAdmin){
-      adminPanel.classList.remove('hidden');
-      agentForm.classList.add('hidden');
-    } else {
-      adminPanel.classList.add('hidden');
-      agentForm.classList.remove('hidden');
-    }
+  if(isAdmin){
+  adminPanel.classList.add('hidden'); // TEMP DISABLED TO SAVE READS
+  agentForm.classList.remove('hidden'); // allow admin to submit logs if needed
+} else {
+  adminPanel.classList.add('hidden');
+  agentForm.classList.remove('hidden');
+}
 
-    populateCompanyFilter();
-    loadLogs();
-
+   // populateCompanyFilter(); // TEMP DISABLED TO SAVE FIRESTORE READS
+// loadLogs(); // TEMP DISABLED TO SAVE FIRESTORE READS
+    
   } else {
 
     loginPage.classList.remove('hidden');
@@ -687,7 +687,7 @@ document.getElementById("notes").value="Concern:\n\nAction Taken:";
 
     showToast("✅ Log saved");
 
-    loadLogs();
+    // loadLogs(); // TEMP DISABLED TO SAVE FIRESTORE READS
 
   }catch(e){
     alert(e.message);
