@@ -125,41 +125,39 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
          placeholder="Enter Company Name">
 </div>
     <select id="disposition" onchange="checkDispositionReason()">
-<option value="">Select Disposition</option>
-  <option>Password Reset</option>
-  <option>Order Entry</option>
-  <option>Item Inquiry</option>
-  <option>Order Status/ Tracking</option>
+  <option value="">Select Disposition</option>
+  <option>Billing Invoice/Charges</option>
+  <option>Order Cancellation</option>
+  <option>Disconnect 2x</option>
+  <option>Ghost Call/Wrong Number</option>
   <option>Impersonate</option>
-  <option>Invoice</option>
-  <option>Cancellation</option>
-  <option>Missing item/Incorrect item</option>
-  <option>Disconnect(Attempt 2x)</option>
-  <option>GhostCall</option>
-  <option>Wrong number</option>
-  <option>Website Issue</option>
-  <option>Billing/Charges</option>
+  <option>Item Inquiry</option>
+  <option>Order Status/Tracking</option>
+  <option>Vendor</option>
+  <option>Website Error</option>
+  <option>Website Log in Issue</option>
   <option>Other Department</option>
-  <option>Refer to AM</option>
 </select>
-  <select id="amReason" class="hidden" onchange="checkAMOther()" required>
-  <option value="">Select AM Reason</option>
-  <option>Account creation</option>
-  <option>Website account transfer to a new manager, director, etc</option>
-  <option>Back order</option>
-  <option>Inventory</option>
-  <option>Order Pending</option>
-  <option>Order Approval</option>
-  <option>Website update/issue</option>
-  <option>Cancellation</option>
-  <option>Missing item/Incorrect item</option>
-  <option>Other</option>
+  <select id="department" class="hidden" onchange="checkAccountTeamReason()" required>
+  <option value="">Select Other Department</option>
+  <option>Finance</option>
+  <option>HR</option>
+  <option>Warehouse</option>
+  <option>Account Team</option>
 </select>
-
-    <input id="amReasonOther"
-class="hidden"
-placeholder="Enter specific AM reason">
-
+    
+ <select id="accountTeamReason" class="hidden" required>
+  <option value="">Select Account Team Reason</option>
+  <option>Return Item</option>
+  <option>Missing/Incomplete Item</option>
+  <option>Account Creation</option>
+  <option>Item Update/Availability</option>
+  <option>Price Discrepancy</option>
+  <option>Order Delay</option>
+  <option>Refund Request</option>
+  <option>Account Transfer</option>
+</select>
+    
     <input id="amName"
 class="hidden"
 placeholder="Enter Account Manager Name">
@@ -501,40 +499,39 @@ function loadCompanies() {
 function checkDispositionReason(){
 
   const disp = document.getElementById('disposition').value;
-  const amBox = document.getElementById('amReason');
-  const otherBox = document.getElementById('amReasonOther');
+  const departmentBox = document.getElementById('department');
+  const accountTeamReasonBox = document.getElementById('accountTeamReason');
   const amName = document.getElementById('amName');
 
-  if(disp === 'Refer to AM'){
-
-    amBox.classList.remove('hidden');
-    amName.classList.remove('hidden');
-
+  if(disp === 'Other Department'){
+    departmentBox.classList.remove('hidden');
   }else{
-
-    amBox.classList.add('hidden');
-    otherBox.classList.add('hidden');
+    departmentBox.classList.add('hidden');
+    accountTeamReasonBox.classList.add('hidden');
     amName.classList.add('hidden');
 
-    amBox.value='';
-    otherBox.value='';
-    amName.value='';
+    departmentBox.value = '';
+    accountTeamReasonBox.value = '';
+    amName.value = '';
   }
 }
-  function checkAMOther(){
+  function checkAccountTeamReason(){
 
-  const reason = document.getElementById("amReason").value;
-  const otherBox = document.getElementById("amReasonOther");
+  const department = document.getElementById("department").value;
+  const accountTeamReasonBox = document.getElementById("accountTeamReason");
+  const amName = document.getElementById("amName");
 
-  if(reason === "Other"){
-    otherBox.classList.remove("hidden");
+  if(department === "Account Team"){
+    accountTeamReasonBox.classList.remove("hidden");
+    amName.classList.remove("hidden");
   }else{
-    otherBox.classList.add("hidden");
-    otherBox.value = "";
+    accountTeamReasonBox.classList.add("hidden");
+    amName.classList.add("hidden");
+
+    accountTeamReasonBox.value = "";
+    amName.value = "";
   }
-
 }
-
 /* ================= SAVE LOG ================= */
 
 async function saveLog(){
@@ -586,38 +583,29 @@ else{
     return;
   }
 }
-  const disposition=document.getElementById("disposition").value;
-  if(disposition === "Refer to AM"){
-  const amNameCheck =
-    document.getElementById("amName").value.trim();
+ const disposition = document.getElementById("disposition").value;
 
-  if(!amNameCheck){
-    alert("Please enter the Account Manager name");
-    return;
-  }
-}
-  const amReasonSelect = document.getElementById("amReason").value;
-  const amReasonOther = document.getElementById("amReasonOther").value.trim();
+if(disposition === "Other Department"){
+  const department = document.getElementById("department").value;
 
-let finalAmReason = amReasonSelect;
-
-if(amReasonSelect === "Other"){
-  if(!amReasonOther){
-    alert("Please enter specific AM reason");
-    return;
-  }
-  finalAmReason = amReasonOther;
-}
-  if(disposition === "Refer to AM"){
-
-  const amReason = document.getElementById("amReason").value;
-
-  if(!amReason){
-    alert("Please select AM Reason required");
+  if(!department){
+    alert("Please select Other Department");
     return;
   }
 
+  if(department === "Account Team"){
+    const accountTeamReason = document.getElementById("accountTeamReason").value;
+
+    if(!accountTeamReason){
+      alert("Please select Account Team Reason");
+      return;
+    }
+  }
 }
+
+const department = document.getElementById("department").value;
+const accountTeamReason = document.getElementById("accountTeamReason").value;
+
   const amName=document.getElementById("amName").value.trim();
   const dollarAmount=document.getElementById("dollarAmount").value.trim();
   const status=document.getElementById("status").value || "Open";
@@ -662,7 +650,8 @@ tool,
 callType,
 company,
 disposition,
-amReason: finalAmReason,
+department,
+accountTeamReason,
 amName,
 dollarAmount,
 status,
@@ -1194,7 +1183,8 @@ if(filterStatus){
 "Company",
 "Disposition",
 "AM Name",
-"AM Reason",
+"Department",
+"Account Team Reason",
 "Dollar Amount",
 "Status",
 "Agent",
@@ -1267,7 +1257,8 @@ escapeCSV(l.ref || ""),          // ✅ REF ID FIXED
 escapeCSV(l.company),
 escapeCSV(l.disposition),
 escapeCSV(l.amName || ""),
-escapeCSV(l.amReason || ""),
+escapeCSV(l.department || ""),
+escapeCSV(l.accountTeamReason || ""),
 escapeCSV(l.dollarAmount || ""),
 escapeCSV(l.status),
 escapeCSV(l.agent),
