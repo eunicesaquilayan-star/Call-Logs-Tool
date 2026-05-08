@@ -156,7 +156,6 @@ th,td{padding:10px;border-bottom:1px solid #ddd;font-size:13px;text-align:left}
   <option>Order Delay</option>
   <option>Refund Request</option>
   <option>Account Transfer</option>
-  <option>Check out issue</option>
 </select>
     
     <input id="amName"
@@ -404,17 +403,17 @@ auth.onAuthStateChanged(u=>{
     lastVisibleDoc = null;
     firstVisibleDoc = null;
 
-  if(isAdmin){
-  adminPanel.classList.add('hidden'); // TEMP DISABLED TO SAVE READS
-  agentForm.classList.remove('hidden'); // allow admin to submit logs if needed
-} else {
-  adminPanel.classList.add('hidden');
-  agentForm.classList.remove('hidden');
-}
+    if(isAdmin){
+      adminPanel.classList.remove('hidden');
+      agentForm.classList.add('hidden');
+    } else {
+      adminPanel.classList.add('hidden');
+      agentForm.classList.remove('hidden');
+    }
 
-   // populateCompanyFilter(); // TEMP DISABLED TO SAVE FIRESTORE READS
-// loadLogs(); // TEMP DISABLED TO SAVE FIRESTORE READS
-    
+    populateCompanyFilter();
+    loadLogs();
+
   } else {
 
     loginPage.classList.remove('hidden');
@@ -687,7 +686,7 @@ document.getElementById("notes").value="Concern:\n\nAction Taken:";
 
     showToast("✅ Log saved");
 
-    // loadLogs(); // TEMP DISABLED TO SAVE FIRESTORE READS
+    loadLogs();
 
   }catch(e){
     alert(e.message);
@@ -1504,46 +1503,3 @@ async function loadAdminAnalytics(){
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
